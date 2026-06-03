@@ -13,7 +13,12 @@ from vlm.provider import VLMProvider
 
 class OpenAIProvider(VLMProvider):
     def __init__(self, model: str | None = None):
-        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL")
+        kwargs = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        self.client = AsyncOpenAI(**kwargs)
         self.model = model or os.getenv("OPENAI_VLM_MODEL", "gpt-4o")
 
     def _encode(self, image_bytes: bytes) -> str:
