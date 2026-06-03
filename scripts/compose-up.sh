@@ -8,7 +8,17 @@ if [[ ! -f .env ]]; then
 fi
 
 mkdir -p data/uploads data/results models
-docker compose up -d --build
+
+if docker compose version &>/dev/null; then
+  COMPOSE=(docker compose)
+elif command -v docker-compose &>/dev/null; then
+  COMPOSE=(docker-compose)
+else
+  echo "未找到 docker compose。请先: brew install docker docker-compose colima && colima start -f"
+  exit 1
+fi
+
+"${COMPOSE[@]}" up -d --build
 echo ""
 echo "SciPlot 已启动："
 echo "  前端  http://localhost:3000"

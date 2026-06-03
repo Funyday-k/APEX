@@ -26,6 +26,14 @@ cd frontend && npm install && npm run dev
 
 ## 一键 Docker 部署
 
+本机需已安装 Docker。macOS 推荐 [Colima](https://github.com/abiosoft/colima)（无需 Docker Desktop 的 sudo）：
+
+```bash
+brew install docker docker-compose colima
+colima start -f    # 首次启动虚拟机
+docker --version   # 确认可用
+```
+
 ```bash
 cp .env.example .env    # 可选：设置 VLM_PROVIDER=openai 与 API Key
 chmod +x scripts/compose-up.sh
@@ -35,7 +43,7 @@ chmod +x scripts/compose-up.sh
 - 前端：http://localhost:3000  
 - API 文档：http://localhost:8000/docs  
 
-停止：`docker compose down`
+停止：`docker-compose down`（或 `docker compose down`，视安装方式而定）
 
 ## VLM 配置
 
