@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from core.schemas import ExtractionResult
-from config import UPLOAD_DIR
+from config import UPLOAD_DIR, safe_child_path
 from export.exporters import export_csv, export_excel, export_json
 from export.report import generate_report
 from storage.results import load_result
@@ -23,19 +23,11 @@ def _result_from_body(image_id: str, body: ExportBody | None) -> ExtractionResul
     if body and body.result:
         return ExtractionResult.model_validate(body.result)
     if body and body.series:
-        from core.schemas import ChartType, DataSeries, Point
+        from core.schemas import ChartType, DataSeries
 
         series = []
         for s in body.series:
-            pts = [Point(**p) if isinstance(p, dict) else Point(x=p["x"], y=p["y"]) for p in s.get("points", [])]
-            series.append(
-                DataSeries(
-                    name=s.get("name", "series"),
-                    color_hex=s.get("color_hex"),
-                    points=pts,
-                    confidence=s.get("confidence", 1.0),
-                )
-            )
+            series.append(DataSeries.model_validate(s))
         return ExtractionResult(chart_type=ChartType.LINE, series=series)
 
     stored = load_result(image_id)
@@ -74,7 +66,10 @@ def _stream_export(result: ExtractionResult, format: str, image_id: str | None =
     elif format == "pdf":
         if not image_id:
             raise HTTPException(400, "PDF 导出需要 image_id")
-        img_path = UPLOAD_DIR / image_id
+        try:
+            img_path = safe_child_path(UPLOAD_DIR, image_id)
+        except ValueError as exc:
+            raise HTTPException(400, "非法图片路径") from exc
         if not img_path.exists():
             raise HTTPException(404, "原图不存在")
         data = generate_report(result, img_path.read_bytes())

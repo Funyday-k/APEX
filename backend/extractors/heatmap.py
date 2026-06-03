@@ -2,7 +2,7 @@ import numpy as np
 
 from core.schemas import DataSeries, HeatmapOptions, Point
 from extractors.base import BaseExtractor
-from extractors.line_chart import LineChartExtractor
+from extractors.plot_mask import build_plot_mask
 
 
 class HeatmapExtractor(BaseExtractor):
@@ -49,7 +49,7 @@ class HeatmapExtractor(BaseExtractor):
         return best_v
 
     def _sample_grid(self, img, calibrator, lut, grid):
-        plot_mask = LineChartExtractor()._build_plot_mask(img, calibrator)
+        plot_mask = build_plot_mask(img, calibrator)
         xt, yt = calibrator.x_transform, calibrator.y_transform
         x0, x1 = int(min(xt.p1, xt.p2)), int(max(xt.p1, xt.p2))
         y0, y1 = int(min(yt.p1, yt.p2)), int(max(yt.p1, yt.p2))

@@ -3,12 +3,15 @@ import numpy as np
 
 from core.schemas import DataSeries, Point
 from extractors.base import BaseExtractor
+from extractors.plot_mask import build_plot_mask
 
 
 class BarChartExtractor(BaseExtractor):
     def extract(self, img, calibrator, series_colors=None):
+        plot_mask = build_plot_mask(img, calibrator)
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        binary = cv2.bitwise_and(binary, plot_mask)
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         bars = []

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from config import RESULTS_DIR
+from config import RESULTS_DIR, safe_child_path
 from core.schemas import ExtractionResult
 
 
@@ -10,12 +10,15 @@ def save_result(image_id: str, result: ExtractionResult, calibration: dict | Non
         "result": result.model_dump(mode="json"),
         "calibration": calibration,
     }
-    path = RESULTS_DIR / f"{image_id}.json"
+    path = safe_child_path(RESULTS_DIR, f"{image_id}.json")
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_result(image_id: str) -> ExtractionResult | None:
-    path = RESULTS_DIR / f"{image_id}.json"
+    try:
+        path = safe_child_path(RESULTS_DIR, f"{image_id}.json")
+    except ValueError:
+        return None
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))

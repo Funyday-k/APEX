@@ -15,6 +15,12 @@ export function CalibratePanel() {
     setScale,
     clearCalib,
     setStep,
+    imageGeometry,
+    suggestedTicks,
+    applySuggestedCalibration,
+    chartMetadata,
+    showRegionOverlay,
+    setShowRegionOverlay,
   } = useStore();
   const { t } = useT();
 
@@ -57,6 +63,27 @@ export function CalibratePanel() {
           </select>
         </label>
         <p className="hint">{t('calibrateHint', { x: xRefs.length, y: yRefs.length })}</p>
+        {chartMetadata && (chartMetadata.x_quantity || chartMetadata.y_quantity) && (
+          <p className="hint metadata-inline">
+            {chartMetadata.x_quantity || chartMetadata.x_label}
+            {chartMetadata.x_unit ? ` [${chartMetadata.x_unit}]` : ''} ·{' '}
+            {chartMetadata.y_quantity || chartMetadata.y_label}
+            {chartMetadata.y_unit ? ` [${chartMetadata.y_unit}]` : ''}
+          </p>
+        )}
+        <label className="checkbox-inline">
+          <input
+            type="checkbox"
+            checked={showRegionOverlay}
+            onChange={(e) => setShowRegionOverlay(e.target.checked)}
+          />
+          {t('showRegionOverlay')}
+        </label>
+        {suggestedTicks && imageGeometry && (
+          <button type="button" className="btn-muted" onClick={applySuggestedCalibration}>
+            {t('applySuggestedTicks')}
+          </button>
+        )}
         <div className="btn-row">
           <button type="button" className="btn-muted" onClick={clearCalib}>
             {t('clearCalib')}
@@ -64,7 +91,7 @@ export function CalibratePanel() {
           <button
             type="button"
             className="btn-primary"
-            disabled={xRefs.length < 2 || yRefs.length < 2}
+            disabled={xRefs.length < 2 || yRefs.length < 2 || !imageGeometry}
             onClick={() => setStep('extract')}
           >
             {t('nextExtract')}

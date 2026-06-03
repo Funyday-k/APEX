@@ -7,7 +7,12 @@ from openai import AsyncOpenAI
 
 from core.schemas import ChartType
 from vlm.parser import parse_json_response
-from vlm.prompts import CLASSIFY_PROMPT, SEMANTICS_PROMPT
+from vlm.prompts import (
+    CLASSIFY_PROMPT,
+    REGION_SEGMENT_PROMPT,
+    SEMANTICS_PROMPT,
+    build_point_audit_prompt,
+)
 from vlm.provider import VLMProvider
 
 
@@ -60,4 +65,23 @@ class OpenAIProvider(VLMProvider):
     async def analyze_semantics(self, image_bytes: bytes) -> dict:
         url = self._encode(image_bytes)
         text = await self._ask(url, SEMANTICS_PROMPT)
+        return parse_json_response(text)
+
+    async def segment_regions(self, image_bytes: bytes) -> dict:
+        url = self._encode(image_bytes)
+        text = await self._ask(url, REGION_SEGMENT_PROMPT)
+        return parse_json_response(text)
+
+    async def audit_points(
+        self,
+        image_bytes: bytes,
+        detected_summary: str,
+        regions_summary: str,
+        semantics_summary: str,
+    ) -> dict:
+        url = self._encode(image_bytes)
+        prompt = build_point_audit_prompt(
+            detected_summary, regions_summary, semantics_summary
+        )
+        text = await self._ask(url, prompt)
         return parse_json_response(text)

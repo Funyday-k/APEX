@@ -49,15 +49,20 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.wizard-header h1 {
+.brand-apex {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.14em;
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
-.wizard-header p {
-  margin: 0;
-  color: #888;
-  font-size: 0.85rem;
+.brand-tagline {
+  margin: 4px 0 0;
+  color: #666;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
 }
 
 .step-indicator {
@@ -149,6 +154,52 @@
   overflow: auto;
 }
 
+.konva-stage-shell {
+  position: relative;
+  display: inline-block;
+}
+
+.calibration-click-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: crosshair;
+  background: transparent;
+}
+
+.calibration-popover {
+  position: absolute;
+  z-index: 10;
+  width: 200px;
+  padding: 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+}
+
+.calibration-popover label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #333;
+  font-size: 0.85rem;
+}
+
+.calibration-popover input {
+  padding: 6px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+}
+
+.btn-row.compact {
+  margin-top: 8px;
+}
+
+.btn-row.compact button {
+  padding: 5px 10px;
+}
+
 .preview-thumb {
   max-width: 100%;
   max-height: 200px;
@@ -212,6 +263,49 @@ button:disabled {
   margin: 0;
 }
 
+.metadata-summary {
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.metadata-summary dt {
+  font-weight: 600;
+  margin-top: 0.35rem;
+}
+
+.metadata-summary dd {
+  margin: 0.1rem 0 0 0;
+  color: var(--text-muted, #555);
+}
+
+.removal-suggestions {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ffc9d4;
+  border-radius: 6px;
+  background: #fff5f7;
+}
+
+.removal-suggestions .warning {
+  color: #c41d4a;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.flags-list.compact {
+  font-size: 0.85rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
 .flags-list {
   margin: 0;
   padding: 10px 14px;
@@ -239,4 +333,19 @@ button:disabled {
   padding: 12px;
   background: #fafafa;
   border-radius: 6px;
+}
+
+.review-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+
+.review-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }

@@ -11,3 +11,13 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'sciplot.db'}")
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def safe_child_path(directory: Path, name: str) -> Path:
+    base = directory.resolve()
+    path = (base / name).resolve()
+    try:
+        path.relative_to(base)
+    except ValueError as exc:
+        raise ValueError("非法文件路径") from exc
+    return path

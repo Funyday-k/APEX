@@ -13,6 +13,20 @@ class VLMProvider(ABC):
     @abstractmethod
     async def analyze_semantics(self, image_bytes: bytes) -> dict: ...
 
+    async def segment_regions(self, image_bytes: bytes) -> dict:
+        """Return raw VLM JSON for plot regions; empty dict if unsupported."""
+        return {}
+
+    async def audit_points(
+        self,
+        image_bytes: bytes,
+        detected_summary: str,
+        regions_summary: str,
+        semantics_summary: str,
+    ) -> dict:
+        """Return raw VLM JSON with removals list; empty dict if unsupported."""
+        return {}
+
 
 class StubVLMProvider(VLMProvider):
     """无 API Key 或未配置 VLM 时使用。"""
@@ -21,6 +35,18 @@ class StubVLMProvider(VLMProvider):
         return None
 
     async def analyze_semantics(self, image_bytes: bytes) -> dict:
+        return {}
+
+    async def segment_regions(self, image_bytes: bytes) -> dict:
+        return {}
+
+    async def audit_points(
+        self,
+        image_bytes: bytes,
+        detected_summary: str,
+        regions_summary: str,
+        semantics_summary: str,
+    ) -> dict:
         return {}
 
 

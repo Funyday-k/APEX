@@ -1,60 +1,118 @@
 import React from 'react';
 import { Circle, Layer, Line } from 'react-konva';
 import { recomputePoint } from '../../services/api';
-import { useStore } from '../../store/useStore';
+import {
+  displayToNatural,
+  naturalToDisplay,
+  type Pixel,
+  useStore,
+} from '../../store/useStore';
+
+type DragNode = {
+  x: () => number;
+  y: () => number;
+  position: (pos: Pixel) => void;
+  getLayer: () => { batchDraw: () => void } | null;
+};
 
 export const DataPointLayer: React.FC = () => {
-  const { series, calibration, updatePoint } = useStore();
+  const {
+    series,
+    chartType,
+    calibration,
+    imageGeometry,
+    pixelDisplayMode,
+    updatePoint,
+    removePoint,
+    setError,
+    suggestedRemovals,
+  } = useStore();
+
+  const removalSet = new Set(
+    suggestedRemovals.map((r) => `${r.series_idx}:${r.point_idx}`)
+  );
 
   const handleDragEnd = async (
     seriesIdx: number,
     pointIdx: number,
-    pos: { x: number; y: number }
+    pos: Pixel,
+    previous: Pixel,
+    node: DragNode
   ) => {
     if (!calibration) return;
+    const sourcePos = imageGeometry ? displayToNatural(pos, imageGeometry) : pos;
     try {
       const res = await recomputePoint({
         calibration,
         pixel_points: [
-          { series_idx: seriesIdx, point_idx: pointIdx, px: pos.x, py: pos.y },
+          { series_idx: seriesIdx, point_idx: pointIdx, px: sourcePos.x, py: sourcePos.y },
         ],
       });
       const pt = res.points[0];
-      updatePoint(seriesIdx, pointIdx, { x: pt.x, y: pt.y }, { x: pt.px, y: pt.py });
+      const displayPixel = imageGeometry
+        ? naturalToDisplay({ x: pt.px, y: pt.py }, imageGeometry)
+        : { x: pt.px, y: pt.py };
+      updatePoint(seriesIdx, pointIdx, { x: pt.x, y: pt.y }, displayPixel);
     } catch (e) {
-      console.error(e);
+      node.position(previous);
+      node.getLayer()?.batchDraw();
+      setError((e as Error).message);
     }
   };
 
+  const showConnectLines = chartType === 'line';
+
   return (
     <Layer>
-      {series.map((s, si) => (
-        <React.Fragment key={si}>
-          {s.pixel_points.length > 1 && (
-            <Line
-              points={s.pixel_points.flatMap((p) => [p.x, p.y])}
-              stroke={s.color_hex || '#000'}
-              strokeWidth={1.5}
-            />
-          )}
-          {s.pixel_points.map((p, pi) => (
-            <Circle
-              key={pi}
-              x={p.x}
-              y={p.y}
-              radius={4}
-              fill={s.color_hex || '#1677ff'}
-              stroke="#fff"
-              strokeWidth={1}
-              draggable
-              onDragEnd={(e) => {
-                const node = e.target;
-                handleDragEnd(si, pi, { x: node.x(), y: node.y() });
-              }}
-            />
-          ))}
-        </React.Fragment>
-      ))}
+      {series.map((s, si) => {
+        const displayPts =
+          pixelDisplayMode === 'detected' &&
+          s.detected_pixel_points &&
+          s.detected_pixel_points.length > 0
+            ? s.detected_pixel_points
+            : s.pixel_points;
+
+        return (
+          <React.Fragment key={si}>
+            {showConnectLines && displayPts.length > 1 && (
+              <Line
+                points={[...displayPts]
+                  .sort((a, b) => a.x - b.x)
+                  .flatMap((p) => [p.x, p.y])}
+                stroke={s.color_hex || '#000'}
+                strokeWidth={1.5}
+              />
+            )}
+            {displayPts.map((p, pi) => {
+              const flagged = removalSet.has(`${si}:${pi}`);
+              return (
+              <Circle
+                key={pi}
+                x={p.x}
+                y={p.y}
+                radius={pixelDisplayMode === 'detected' ? 3 : flagged ? 6 : 4}
+                fill={
+                  flagged
+                    ? 'rgba(255,0,80,0.85)'
+                    : pixelDisplayMode === 'detected'
+                    ? 'rgba(255,140,0,0.9)'
+                    : s.color_hex || '#1677ff'
+                }
+                stroke={flagged ? '#ff0050' : '#fff'}
+                strokeWidth={flagged ? 2 : 1}
+                draggable={pixelDisplayMode === 'data'}
+                onDblClick={() => removePoint(si, pi)}
+                onDragEnd={(e) => {
+                  if (pixelDisplayMode !== 'data') return;
+                  const node = e.target;
+                  handleDragEnd(si, pi, { x: node.x(), y: node.y() }, p, node);
+                }}
+              />
+            );
+            })}
+          </React.Fragment>
+        );
+      })}
     </Layer>
   );
 };

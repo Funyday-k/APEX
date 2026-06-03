@@ -48,3 +48,15 @@ def detect_plot_area(img: np.ndarray) -> dict:
         "y1": int(h * 0.9),
         "detected": False,
     }
+
+
+def intersect_rect(a: dict, x0: int, y0: int, x1: int, y1: int) -> tuple[int, int, int, int]:
+    """Intersect calibration rectangle with detected plot area dict."""
+    if not a.get("detected"):
+        return x0, y0, x1, y1
+    return (
+        max(x0, a["x0"]),
+        max(y0, a["y0"]),
+        min(x1, a["x1"]),
+        min(y1, a["y1"]),
+    )

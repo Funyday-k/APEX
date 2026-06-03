@@ -7,11 +7,21 @@ function errMsg(key: TranslationKey): string {
   return t(useStore.getState().locale, key);
 }
 
+async function responseError(res: Response, key: TranslationKey): Promise<Error> {
+  try {
+    const data = await res.json();
+    if (typeof data.detail === 'string') return new Error(data.detail);
+  } catch {
+    /* fall back to localized message */
+  }
+  return new Error(errMsg(key));
+}
+
 export async function uploadImage(file: File) {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`${BASE}/projects/upload`, { method: 'POST', body: form });
-  if (!res.ok) throw new Error(errMsg('errUpload'));
+  if (!res.ok) throw await responseError(res, 'errUpload');
   return res.json() as Promise<{ image_id: string; url: string }>;
 }
 
@@ -21,7 +31,7 @@ export async function autoAnalyze(imageId: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image_id: imageId }),
   });
-  if (!res.ok) throw new Error(errMsg('errAnalyze'));
+  if (!res.ok) throw await responseError(res, 'errAnalyze');
   return res.json();
 }
 
@@ -31,10 +41,7 @@ export async function extractData(payload: Record<string, unknown>) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || errMsg('errExtract'));
-  }
+  if (!res.ok) throw await responseError(res, 'errExtract');
   return res.json();
 }
 
@@ -52,7 +59,7 @@ export async function recomputePoint(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(errMsg('errRecompute'));
+  if (!res.ok) throw await responseError(res, 'errRecompute');
   return res.json() as Promise<{
     points: Array<{
       series_idx: number;
@@ -68,13 +75,13 @@ export async function recomputePoint(payload: {
 export async function exportResult(
   imageId: string,
   format: 'csv' | 'json' | 'excel' | 'pdf',
-  series: unknown[]
+  result: unknown
 ) {
   const res = await fetch(`${BASE}/export/${imageId}?format=${format}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ series }),
+    body: JSON.stringify({ result }),
   });
-  if (!res.ok) throw new Error(errMsg('errExport'));
+  if (!res.ok) throw await responseError(res, 'errExport');
   return res.blob();
 }

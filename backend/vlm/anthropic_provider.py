@@ -6,7 +6,12 @@ import numpy as np
 
 from core.schemas import ChartType
 from vlm.parser import parse_json_response
-from vlm.prompts import CLASSIFY_PROMPT, SEMANTICS_PROMPT
+from vlm.prompts import (
+    CLASSIFY_PROMPT,
+    REGION_SEGMENT_PROMPT,
+    SEMANTICS_PROMPT,
+    build_point_audit_prompt,
+)
 from vlm.provider import VLMProvider
 
 
@@ -60,4 +65,29 @@ class AnthropicProvider(VLMProvider):
         arr = load_image(image_bytes)
         media_type, data = self._encode_ndarray(arr)
         text = await self._ask(media_type, data, SEMANTICS_PROMPT)
+        return parse_json_response(text)
+
+    async def segment_regions(self, image_bytes: bytes) -> dict:
+        from preprocessing.loader import load_image
+
+        arr = load_image(image_bytes)
+        media_type, data = self._encode_ndarray(arr)
+        text = await self._ask(media_type, data, REGION_SEGMENT_PROMPT)
+        return parse_json_response(text)
+
+    async def audit_points(
+        self,
+        image_bytes: bytes,
+        detected_summary: str,
+        regions_summary: str,
+        semantics_summary: str,
+    ) -> dict:
+        from preprocessing.loader import load_image
+
+        arr = load_image(image_bytes)
+        media_type, data = self._encode_ndarray(arr)
+        prompt = build_point_audit_prompt(
+            detected_summary, regions_summary, semantics_summary
+        )
+        text = await self._ask(media_type, data, prompt)
         return parse_json_response(text)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from calibration.calibrator import Calibrator
@@ -14,10 +14,16 @@ class RecomputeRequest(BaseModel):
 
 @router.post("/recompute")
 async def recompute(req: RecomputeRequest):
-    calibrator = Calibrator(req.calibration)
+    try:
+        calibrator = Calibrator(req.calibration)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     results = []
     for item in req.pixel_points:
-        data_pt = calibrator.pixel_to_data(item["px"], item["py"])
+        try:
+            data_pt = calibrator.pixel_to_data(item["px"], item["py"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="无效的像素点参数") from exc
         results.append(
             {
                 "series_idx": item["series_idx"],

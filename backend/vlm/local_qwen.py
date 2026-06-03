@@ -7,7 +7,12 @@ from PIL import Image
 
 from core.schemas import ChartType
 from vlm.parser import parse_json_response
-from vlm.prompts import CLASSIFY_PROMPT, SEMANTICS_PROMPT
+from vlm.prompts import (
+    CLASSIFY_PROMPT,
+    REGION_SEGMENT_PROMPT,
+    SEMANTICS_PROMPT,
+    build_point_audit_prompt,
+)
 from vlm.provider import VLMProvider
 
 
@@ -51,4 +56,23 @@ class LocalQwenProvider(VLMProvider):
     async def analyze_semantics(self, image_bytes: bytes) -> dict:
         pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         text = self._run(pil, SEMANTICS_PROMPT)
+        return parse_json_response(text)
+
+    async def segment_regions(self, image_bytes: bytes) -> dict:
+        pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        text = self._run(pil, REGION_SEGMENT_PROMPT)
+        return parse_json_response(text)
+
+    async def audit_points(
+        self,
+        image_bytes: bytes,
+        detected_summary: str,
+        regions_summary: str,
+        semantics_summary: str,
+    ) -> dict:
+        pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        prompt = build_point_audit_prompt(
+            detected_summary, regions_summary, semantics_summary
+        )
+        text = self._run(pil, prompt)
         return parse_json_response(text)

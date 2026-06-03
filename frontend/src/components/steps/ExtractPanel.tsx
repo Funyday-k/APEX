@@ -10,17 +10,32 @@ export function ExtractPanel() {
     yRefs,
     xScale,
     yScale,
+    imageGeometry,
     heatmapOptions,
     setHeatmapOptions,
     setExtraction,
     setLoading,
     setError,
+    semantics,
+    regions,
   } = useStore();
   const { t } = useT();
 
   const run = async () => {
     if (!imageId) return;
-    const cal = buildCalibration(xRefs, yRefs, xScale, yScale);
+    if (!imageGeometry) {
+      setError(t('errImageNotReady'));
+      return;
+    }
+    if (xScale === 'log' && xRefs.some((p) => p.data.x <= 0)) {
+      setError(t('errLogCalibPositive'));
+      return;
+    }
+    if (yScale === 'log' && yRefs.some((p) => p.data.y <= 0)) {
+      setError(t('errLogCalibPositive'));
+      return;
+    }
+    const cal = buildCalibration(xRefs, yRefs, xScale, yScale, imageGeometry);
     if (!cal) {
       setError(t('errCalibIncomplete'));
       return;
@@ -39,6 +54,18 @@ export function ExtractPanel() {
       };
       if (chartType === 'heatmap' && heatmapOptions) {
         payload.heatmap_options = heatmapOptions;
+      }
+      if (semantics) {
+        payload.semantics = semantics;
+        const colors = semantics.series_colors as Record<string, string> | undefined;
+        if (colors) {
+          payload.series_colors = Object.values(colors).filter(
+            (c) => typeof c === 'string' && c.startsWith('#')
+          );
+        }
+      }
+      if (regions) {
+        payload.regions = regions;
       }
       const res = await extractData(payload);
       setExtraction(res, cal);
@@ -59,19 +86,30 @@ export function ExtractPanel() {
           <button
             type="button"
             className="btn-muted"
-            onClick={() =>
+            onClick={() => {
+              const natural = imageGeometry?.natural || { x: 300, y: 300 };
               setHeatmapOptions({
-                colorbar_box: { x0: 10, y0: 10, x1: 40, y1: 200 },
+                colorbar_box: {
+                  x0: Math.max(0, Math.round(natural.x - 50)),
+                  y0: Math.round(natural.y * 0.15),
+                  x1: Math.max(1, Math.round(natural.x - 20)),
+                  y1: Math.round(natural.y * 0.85),
+                },
                 value_range: [0, 1],
                 grid: [10, 10],
-              })
-            }
+              });
+            }}
           >
             {t('heatmapDefaults')}
           </button>
         </div>
       )}
-      <button type="button" className="btn-primary" onClick={run}>
+      <button
+        type="button"
+        className="btn-primary"
+        disabled={!imageGeometry}
+        onClick={run}
+      >
         {t('runExtract')}
       </button>
     </div>
