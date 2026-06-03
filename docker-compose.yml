@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: ./backend
+    container_name: sciplot-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    environment:
+      - VLM_PROVIDER=${VLM_PROVIDER:-stub}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_VLM_MODEL=${OPENAI_VLM_MODEL:-gpt-4o}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_VLM_MODEL=${ANTHROPIC_VLM_MODEL:-claude-3-5-sonnet-20241022}
+      - DATABASE_URL=sqlite:////app/data/sciplot.db
+      - DATA_DIR=/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: sciplot-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: sciplot-redis
+    profiles: ["async"]

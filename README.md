@@ -2,32 +2,66 @@
 
 从科研图表图像中精确提取结构化数据的本地 Web 应用（CV + VLM + 人机协同）。
 
+**License:** [MIT](LICENSE)
+
 ## 状态
 
-**设计阶段** — 完整技术规格见 [`DOC/`](DOC/)，实现尚未开始。
+**规格完整实现** — 主框架 §1–17、附录 A/B/C、五步向导、扩展图类型、PDF 导出（[MIT](LICENSE)）。
 
-## 文档
+- [实现进度](DOC/progress.md) · [任务清单](TASKS.md) · [文档索引](DOC/README.md)
 
-- [文档索引](DOC/README.md)
-- [主框架规格](DOC/core/01-framework.md)
-- [开发路线图](DOC/roadmap.md)
-- [实现任务规划](TASKS.md)
+## 快速开始（本地）
 
-## 核心原则
+```bash
+# 后端
+cd backend && python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
 
-- 数值由 **OpenCV / 传统 CV** 从像素提取
-- **VLM** 仅负责图类型、图例、轴标签等语义
-- 用户可在画布上 **拖拽校正**，并对比重建图
+# 前端
+cd frontend && npm install && npm run dev
+```
 
-## 技术栈（计划）
+打开 **http://localhost:3000**，按五步向导完成上传 → 分析 → 标定 → 提取 → 导出。
+
+## 一键 Docker 部署
+
+```bash
+cp .env.example .env    # 可选：设置 VLM_PROVIDER=openai 与 API Key
+chmod +x scripts/compose-up.sh
+./scripts/compose-up.sh
+```
+
+- 前端：http://localhost:3000  
+- API 文档：http://localhost:8000/docs  
+
+停止：`docker compose down`
+
+## VLM 配置
+
+| `VLM_PROVIDER` | 说明 |
+|----------------|------|
+| `stub`（默认） | 仅规则分类，无外部 API |
+| `openai` | 需 `OPENAI_API_KEY` |
+| `anthropic` | 需 `ANTHROPIC_API_KEY` |
+| `local` | 本地 Qwen2-VL（见 [DOC/appendix/B-local-vlm.md](DOC/appendix/B-local-vlm.md)） |
+
+## 技术栈
 
 | 层 | 技术 |
 |----|------|
-| 前端 | React 18, TypeScript, Vite, Konva, ECharts, Zustand |
-| 后端 | FastAPI, OpenCV, PaddleOCR |
-| VLM | OpenAI / Anthropic API，可选本地 Qwen2-VL |
-| 部署 | Docker Compose, SQLite |
+| 前端 | React 18, TypeScript, Vite, Konva, ECharts |
+| 后端 | FastAPI, OpenCV, scikit-learn, Pydantic, SQLite |
+| 部署 | Docker Compose, Nginx |
 
-## 许可证
+## 目录结构
 
-待定。
+```
+Sciplot/
+├── backend/       # FastAPI + CV 管线
+├── frontend/      # React UI
+├── data/          # 上传与结果（运行时）
+├── DOC/           # 设计规格
+├── scripts/       # compose-up.sh
+└── LICENSE        # MIT
+```

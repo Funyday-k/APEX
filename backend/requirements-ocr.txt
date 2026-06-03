@@ -1,0 +1,3 @@
+# 可选：OCR（体积较大，Docker 可按需安装）
+paddleocr>=2.7.0
+paddlepaddle>=2.6.0
