@@ -1,13 +1,15 @@
 import { useRef } from 'react';
+import { useT } from '../../i18n/useT';
 import { uploadImage } from '../../services/api';
 import { useStore } from '../../store/useStore';
 
 export function UploadPanel() {
   const fileRef = useRef<HTMLInputElement>(null);
   const { setImage, setLoading, setError } = useStore();
+  const { t } = useT();
 
   const onFile = async (file: File) => {
-    setLoading(true, '上传中…');
+    setLoading(true, t('uploading'));
     setError(null);
     try {
       const { image_id, url } = await uploadImage(file);
@@ -21,8 +23,8 @@ export function UploadPanel() {
 
   return (
     <div className="step-panel center">
-      <h2>上传科研图表</h2>
-      <p className="hint">支持 PNG / JPG / WebP 等常见格式</p>
+      <h2>{t('uploadTitle')}</h2>
+      <p className="hint">{t('uploadHint')}</p>
       <input
         ref={fileRef}
         type="file"
@@ -34,7 +36,7 @@ export function UploadPanel() {
         }}
       />
       <button type="button" className="btn-primary" onClick={() => fileRef.current?.click()}>
-        选择图片
+        {t('chooseImage')}
       </button>
     </div>
   );

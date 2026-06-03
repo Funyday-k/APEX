@@ -1,3 +1,4 @@
+import { useT } from '../../i18n/useT';
 import { exportResult } from '../../services/api';
 import { useStore } from '../../store/useStore';
 import { RebuiltChart } from '../Preview/RebuiltChart';
@@ -14,10 +15,11 @@ export function ReviewPanel() {
     setError,
     reset,
   } = useStore();
+  const { t } = useT();
 
   const handleExport = async (format: 'csv' | 'json' | 'excel' | 'pdf') => {
     if (!imageId || !series.length) return;
-    setLoading(true, '导出中…');
+    setLoading(true, t('exporting'));
     try {
       const blob = await exportResult(imageId, format, series);
       const ext =
@@ -37,8 +39,8 @@ export function ReviewPanel() {
   return (
     <div className="step-panel review">
       <div className="review-side">
-        <h2>校正与导出</h2>
-        <p>整体置信度: {(overallConfidence * 100).toFixed(0)}%</p>
+        <h2>{t('reviewTitle')}</h2>
+        <p>{t('confidence', { pct: (overallConfidence * 100).toFixed(0) })}</p>
         {flags.length > 0 && (
           <ul className="flags-list">
             {flags.map((f, i) => (
@@ -47,23 +49,23 @@ export function ReviewPanel() {
           </ul>
         )}
         {fitCurves.length > 0 && (
-          <p className="hint">已识别 {fitCurves.length} 条拟合曲线（见重建图虚线）</p>
+          <p className="hint">{t('fitCurvesHint', { n: fitCurves.length })}</p>
         )}
         <div className="btn-row wrap">
           <button type="button" onClick={() => handleExport('csv')}>
-            CSV
+            {t('exportCsv')}
           </button>
           <button type="button" onClick={() => handleExport('json')}>
-            JSON
+            {t('exportJson')}
           </button>
           <button type="button" onClick={() => handleExport('excel')}>
-            Excel
+            {t('exportExcel')}
           </button>
           <button type="button" onClick={() => handleExport('pdf')}>
-            PDF 报告
+            {t('exportPdf')}
           </button>
           <button type="button" className="btn-muted" onClick={reset}>
-            新图
+            {t('newImage')}
           </button>
         </div>
         <RebuiltChart />

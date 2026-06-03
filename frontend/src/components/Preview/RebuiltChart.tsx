@@ -1,11 +1,13 @@
 import ReactECharts from 'echarts-for-react';
+import { useT } from '../../i18n/useT';
 import { useStore } from '../../store/useStore';
 
 export const RebuiltChart: React.FC = () => {
   const { series, chartType, fitCurves } = useStore();
+  const { t, locale } = useT();
 
   if (!series.length && !fitCurves.length) {
-    return <div className="preview-empty">提取后将在此显示重建图</div>;
+    return <div className="preview-empty">{t('rebuiltEmpty')}</div>;
   }
 
   const lineSeries = series.map((s) => ({
@@ -25,7 +27,7 @@ export const RebuiltChart: React.FC = () => {
   }));
 
   const option = {
-    title: { text: '重建图', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('rebuiltChart'), left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis' },
     legend: { data: [...series.map((s) => s.name), ...fitSeries.map((f) => f.name)] },
     xAxis: { type: 'value' },
@@ -33,5 +35,11 @@ export const RebuiltChart: React.FC = () => {
     series: [...lineSeries, ...fitSeries],
   };
 
-  return <ReactECharts option={option} style={{ height: 280, width: '100%' }} />;
+  return (
+    <ReactECharts
+      key={locale}
+      option={option}
+      style={{ height: 280, width: '100%' }}
+    />
+  );
 };

@@ -1,5 +1,6 @@
-import { ImageCanvas } from '../Canvas/ImageCanvas';
+import { useT } from '../../i18n/useT';
 import { useStore } from '../../store/useStore';
+import { ImageCanvas } from '../Canvas/ImageCanvas';
 
 export function CalibratePanel() {
   const {
@@ -15,51 +16,50 @@ export function CalibratePanel() {
     clearCalib,
     setStep,
   } = useStore();
+  const { t } = useT();
 
   return (
     <div className="step-panel split">
       <div className="side-controls">
-        <h2>坐标标定</h2>
+        <h2>{t('calibrateTitle')}</h2>
         <label>
-          图表类型
+          {t('chartType')}
           <select
             value={chartType}
             onChange={(e) => setChartType(e.target.value as typeof chartType)}
           >
-            <option value="line">折线图</option>
-            <option value="scatter">散点图</option>
-            <option value="bar">柱状图</option>
-            <option value="heatmap">热图</option>
-            <option value="box">箱线图</option>
+            <option value="line">{t('chartLine')}</option>
+            <option value="scatter">{t('chartScatter')}</option>
+            <option value="bar">{t('chartBar')}</option>
+            <option value="heatmap">{t('chartHeatmap')}</option>
+            <option value="box">{t('chartBox')}</option>
           </select>
         </label>
         <label>
-          当前轴
+          {t('currentAxis')}
           <select value={calibAxis} onChange={(e) => setCalibAxis(e.target.value as 'x' | 'y')}>
-            <option value="x">X 轴（2 点）</option>
-            <option value="y">Y 轴（2 点）</option>
+            <option value="x">{t('axisX')}</option>
+            <option value="y">{t('axisY')}</option>
           </select>
         </label>
         <label>
-          X 轴刻度
+          {t('xScale')}
           <select value={xScale} onChange={(e) => setScale('x', e.target.value as 'linear' | 'log')}>
-            <option value="linear">线性</option>
-            <option value="log">对数</option>
+            <option value="linear">{t('scaleLinear')}</option>
+            <option value="log">{t('scaleLog')}</option>
           </select>
         </label>
         <label>
-          Y 轴刻度
+          {t('yScale')}
           <select value={yScale} onChange={(e) => setScale('y', e.target.value as 'linear' | 'log')}>
-            <option value="linear">线性</option>
-            <option value="log">对数</option>
+            <option value="linear">{t('scaleLinear')}</option>
+            <option value="log">{t('scaleLog')}</option>
           </select>
         </label>
-        <p className="hint">
-          在图上点击设置参考点并输入数值。X: {xRefs.length}/2 · Y: {yRefs.length}/2
-        </p>
+        <p className="hint">{t('calibrateHint', { x: xRefs.length, y: yRefs.length })}</p>
         <div className="btn-row">
           <button type="button" className="btn-muted" onClick={clearCalib}>
-            清除标定
+            {t('clearCalib')}
           </button>
           <button
             type="button"
@@ -67,7 +67,7 @@ export function CalibratePanel() {
             disabled={xRefs.length < 2 || yRefs.length < 2}
             onClick={() => setStep('extract')}
           >
-            下一步：提取
+            {t('nextExtract')}
           </button>
         </div>
       </div>

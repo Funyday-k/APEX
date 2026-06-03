@@ -1,4 +1,15 @@
 import { create } from 'zustand';
+import type { Locale } from '../i18n/translations';
+
+function loadLocale(): Locale {
+  try {
+    const saved = localStorage.getItem('sciplot-locale');
+    if (saved === 'en' || saved === 'zh') return saved;
+  } catch {
+    /* ignore */
+  }
+  return 'zh';
+}
 
 export type Pixel = { x: number; y: number };
 export type CalibPoint = { pixel: Pixel; data: Pixel };
@@ -20,6 +31,7 @@ export type CalibrationConfigPayload = {
 };
 
 type State = {
+  locale: Locale;
   step: Step;
   loading: boolean;
   loadingMsg: string;
@@ -50,6 +62,7 @@ type State = {
   overallConfidence: number;
   calibration: CalibrationConfigPayload | null;
 
+  setLocale: (locale: Locale) => void;
   setStep: (s: Step) => void;
   setLoading: (b: boolean, msg?: string) => void;
   setError: (msg: string | null) => void;
@@ -67,6 +80,7 @@ type State = {
 };
 
 const initial = {
+  locale: loadLocale(),
   step: 'upload' as Step,
   loading: false,
   loadingMsg: '',
@@ -92,6 +106,15 @@ const initial = {
 export const useStore = create<State>((set, get) => ({
   ...initial,
 
+  setLocale: (locale) => {
+    try {
+      localStorage.setItem('sciplot-locale', locale);
+    } catch {
+      /* ignore */
+    }
+    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+    set({ locale });
+  },
   setStep: (step) => set({ step }),
   setLoading: (loading, loadingMsg = '') => set({ loading, loadingMsg }),
   setError: (error) => set({ error }),
@@ -148,7 +171,7 @@ export const useStore = create<State>((set, get) => ({
       });
       return { series };
     }),
-  reset: () => set({ ...initial }),
+  reset: () => set({ ...initial, locale: get().locale }),
 }));
 
 const ALLOWED = new Set<ChartTypeId>(['line', 'scatter', 'bar', 'heatmap', 'box']);

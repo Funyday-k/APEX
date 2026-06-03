@@ -1,9 +1,11 @@
 import React from 'react';
 import { Circle, Layer, Text } from 'react-konva';
+import { useT } from '../../i18n/useT';
 import { useStore } from '../../store/useStore';
 
 export const CalibrationLayer: React.FC = () => {
   const { xRefs, yRefs, calibAxis, addCalibPoint } = useStore();
+  const { t } = useT();
 
   const handleClick = (e: { target: { getStage: () => unknown } }) => {
     const stage = e.target.getStage() as {
@@ -13,9 +15,7 @@ export const CalibrationLayer: React.FC = () => {
     const pos = stage.getRelativePointerPosition();
     if (!pos) return;
 
-    const value = prompt(
-      `请输入此点在 ${calibAxis.toUpperCase()} 轴上的数据值：`
-    );
+    const value = prompt(t('calibPrompt', { axis: calibAxis.toUpperCase() }));
     if (value === null || value.trim() === '') return;
     const num = parseFloat(value);
     if (Number.isNaN(num)) return;

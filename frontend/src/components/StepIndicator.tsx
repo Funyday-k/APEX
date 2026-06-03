@@ -1,17 +1,18 @@
 import type { Step } from '../store/useStore';
+import { useT } from '../i18n/useT';
 
-const STEPS: { id: Step; label: string }[] = [
-  { id: 'upload', label: '上传' },
-  { id: 'analyze', label: '分析' },
-  { id: 'calibrate', label: '标定' },
-  { id: 'extract', label: '提取' },
-  { id: 'review', label: '校正导出' },
+const STEPS: { id: Step; key: 'stepUpload' | 'stepAnalyze' | 'stepCalibrate' | 'stepExtract' | 'stepReview' }[] = [
+  { id: 'upload', key: 'stepUpload' },
+  { id: 'analyze', key: 'stepAnalyze' },
+  { id: 'calibrate', key: 'stepCalibrate' },
+  { id: 'extract', key: 'stepExtract' },
+  { id: 'review', key: 'stepReview' },
 ];
 
-const ORDER = STEPS.map((s) => s.id);
-
 export function StepIndicator({ current }: { current: Step }) {
-  const idx = ORDER.indexOf(current);
+  const { t } = useT();
+  const idx = STEPS.findIndex((s) => s.id === current);
+
   return (
     <nav className="step-indicator">
       {STEPS.map((s, i) => (
@@ -19,7 +20,7 @@ export function StepIndicator({ current }: { current: Step }) {
           key={s.id}
           className={`step-item ${i === idx ? 'active' : ''} ${i < idx ? 'done' : ''}`}
         >
-          {i + 1}. {s.label}
+          {i + 1}. {t(s.key)}
         </span>
       ))}
     </nav>

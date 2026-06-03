@@ -1,10 +1,17 @@
+import { type TranslationKey, t } from '../i18n/translations';
+import { useStore } from '../store/useStore';
+
 const BASE = '/api';
+
+function errMsg(key: TranslationKey): string {
+  return t(useStore.getState().locale, key);
+}
 
 export async function uploadImage(file: File) {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`${BASE}/projects/upload`, { method: 'POST', body: form });
-  if (!res.ok) throw new Error('上传失败');
+  if (!res.ok) throw new Error(errMsg('errUpload'));
   return res.json() as Promise<{ image_id: string; url: string }>;
 }
 
@@ -14,7 +21,7 @@ export async function autoAnalyze(imageId: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image_id: imageId }),
   });
-  if (!res.ok) throw new Error('分析失败');
+  if (!res.ok) throw new Error(errMsg('errAnalyze'));
   return res.json();
 }
 
@@ -26,7 +33,7 @@ export async function extractData(payload: Record<string, unknown>) {
   });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(err || '提取失败');
+    throw new Error(err || errMsg('errExtract'));
   }
   return res.json();
 }
@@ -45,7 +52,7 @@ export async function recomputePoint(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error('重算失败');
+  if (!res.ok) throw new Error(errMsg('errRecompute'));
   return res.json() as Promise<{
     points: Array<{
       series_idx: number;
@@ -68,6 +75,6 @@ export async function exportResult(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ series }),
   });
-  if (!res.ok) throw new Error('导出失败');
+  if (!res.ok) throw new Error(errMsg('errExport'));
   return res.blob();
 }

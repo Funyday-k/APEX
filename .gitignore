@@ -17,6 +17,9 @@ node_modules/
 frontend/dist/
 *.tsbuildinfo
 
+# Local test assets
+Test Set/
+
 # Data & models
 data/
 models/
