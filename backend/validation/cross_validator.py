@@ -1,7 +1,7 @@
 import numpy as np
 
 from core.schemas import ChartType, DataSeries, ExtractionResult
-from validation.confidence import agreement_score, smoothness_score
+from validation.confidence import agreement_score, coverage_score, smoothness_score
 
 
 class CrossValidator:
@@ -41,6 +41,18 @@ class CrossValidator:
         )
 
         self._check_range_consistency(named_series, semantics, flags)
+        hint = semantics.get("data_range_hint", {}) or {}
+        x_hint = hint.get("x_max")
+        if x_hint is not None and named_series:
+            cov_vals = []
+            for s in named_series:
+                if s.points:
+                    xs = [p.x for p in s.points]
+                    cov_vals.append(
+                        coverage_score(s, (min(xs), float(x_hint)))
+                    )
+            if cov_vals and min(cov_vals) < 0.5:
+                flags.append("数据覆盖度偏低，曲线/散点可能未完整提取")
 
         chart_type = semantics.get("chart_type", ChartType.LINE)
         if isinstance(chart_type, str):

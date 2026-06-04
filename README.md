@@ -1,4 +1,6 @@
-# SciPlot-Extractor
+# ***APEX***
+
+***Automatic Plot Extractor for science***
 
 从科研图表图像中精确提取结构化数据的本地 Web 应用（CV + VLM + 人机协同）。
 
@@ -22,7 +24,7 @@ uvicorn main:app --reload --port 8000
 cd frontend && npm install && npm run dev
 ```
 
-打开 **http://localhost:3000**，按五步向导完成上传 → 分析 → 标定 → 提取 → 导出。
+打开 **[http://localhost:3000](http://localhost:3000)**，按五步向导完成上传 → 分析 → 标定 → 提取 → 导出。
 
 ## 一键 Docker 部署
 
@@ -40,27 +42,31 @@ chmod +x scripts/compose-up.sh
 ./scripts/compose-up.sh
 ```
 
-- 前端：http://localhost:3000  
-- API 文档：http://localhost:8000/docs  
+- 前端：[http://localhost:3000](http://localhost:3000)  
+- API 文档：[http://localhost:8000/docs](http://localhost:8000/docs)
 
 停止：`docker-compose down`（或 `docker compose down`，视安装方式而定）
 
 ## VLM 配置
 
-| `VLM_PROVIDER` | 说明 |
-|----------------|------|
-| `stub`（默认） | 仅规则分类，无外部 API |
-| `openai` | 需 `OPENAI_API_KEY` |
-| `anthropic` | 需 `ANTHROPIC_API_KEY` |
-| `local` | 本地 Qwen2-VL（见 [DOC/appendix/B-local-vlm.md](DOC/appendix/B-local-vlm.md)） |
+
+| `VLM_PROVIDER` | 说明                                                                        |
+| -------------- | ------------------------------------------------------------------------- |
+| `stub`（默认）     | 仅规则分类，无外部 API                                                             |
+| `openai`       | 需 `OPENAI_API_KEY`                                                        |
+| `anthropic`    | 需 `ANTHROPIC_API_KEY`                                                     |
+| `local`        | 本地 Qwen2-VL（见 [DOC/appendix/B-local-vlm.md](DOC/appendix/B-local-vlm.md)） |
+
 
 ## 技术栈
 
-| 层 | 技术 |
-|----|------|
-| 前端 | React 18, TypeScript, Vite, Konva, ECharts |
-| 后端 | FastAPI, OpenCV, scikit-learn, Pydantic, SQLite |
-| 部署 | Docker Compose, Nginx |
+
+| 层   | 技术                                              |
+| --- | ----------------------------------------------- |
+| 前端  | React 18, TypeScript, Vite, Konva, ECharts      |
+| 后端  | FastAPI, OpenCV, scikit-learn, Pydantic, SQLite |
+| 部署  | Docker Compose, Nginx                           |
+
 
 ## 目录结构
 
@@ -73,3 +79,4 @@ Sciplot/
 ├── scripts/       # compose-up.sh
 └── LICENSE        # MIT
 ```
+

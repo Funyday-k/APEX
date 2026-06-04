@@ -25,11 +25,26 @@ export async function uploadImage(file: File) {
   return res.json() as Promise<{ image_id: string; url: string }>;
 }
 
-export async function autoAnalyze(imageId: string) {
+export type AnalyzeOptionsPayload = {
+  chart_type_override?: string;
+  use_vlm_regions?: boolean;
+  force_redetect_plot?: boolean;
+};
+
+export async function autoAnalyze(imageId: string, options?: AnalyzeOptionsPayload) {
   const res = await fetch(`${BASE}/extract/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image_id: imageId }),
+    body: JSON.stringify({
+      image_id: imageId,
+      options: options
+        ? {
+            chart_type_override: options.chart_type_override || null,
+            use_vlm_regions: options.use_vlm_regions ?? true,
+            force_redetect_plot: options.force_redetect_plot ?? false,
+          }
+        : undefined,
+    }),
   });
   if (!res.ok) throw await responseError(res, 'errAnalyze');
   return res.json();

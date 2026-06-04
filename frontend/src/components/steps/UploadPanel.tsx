@@ -8,12 +8,34 @@ export function UploadPanel() {
   const { setImage, setLoading, setError } = useStore();
   const { t } = useT();
 
+  const readDimensions = (file: File): Promise<{ width?: number; height?: number }> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve({});
+      };
+      img.src = url;
+    });
+
   const onFile = async (file: File) => {
     setLoading(true, t('uploading'));
     setError(null);
     try {
+      const dims = await readDimensions(file);
       const { image_id, url } = await uploadImage(file);
-      setImage(url, image_id);
+      setImage(url, image_id, {
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || undefined,
+        width: dims.width,
+        height: dims.height,
+      });
     } catch (e) {
       setError((e as Error).message);
     } finally {

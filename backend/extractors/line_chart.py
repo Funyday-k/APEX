@@ -21,7 +21,7 @@ class LineChartExtractor(BaseExtractor):
         self._last_detected_pixels = {}
 
         for color_hex, mask in color_masks.items():
-            points = trace_mask_to_points(mask, calibrator, x_min, x_max)
+            points = trace_mask_to_points(mask, calibrator, x_min, x_max, peak_mode=True)
             if len(points) >= 2:
                 self._last_detected_pixels[color_hex] = [
                     {"x": calibrator.data_to_pixel(p.x, p.y).x, "y": calibrator.data_to_pixel(p.x, p.y).y}

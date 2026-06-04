@@ -7,23 +7,25 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
+    "echarts": "^5.5.0",
+    "echarts-for-react": "^3.0.2",
+    "konva": "^9.3.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "zustand": "^4.5.2",
-    "konva": "^9.3.6",
     "react-konva": "^18.2.10",
     "use-image": "^1.1.1",
-    "echarts": "^5.5.0",
-    "echarts-for-react": "^3.0.2"
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^5.4.2",
-    "vite": "^5.1.6"
+    "vite": "^5.1.6",
+    "vitest": "^2.1.9"
   }
 }

@@ -1,7 +1,9 @@
 import { useT } from '../../i18n/useT';
 import { exportResult } from '../../services/api';
 import { useStore } from '../../store/useStore';
+import { AdvancedOptionsPanel } from '../AdvancedOptionsPanel';
 import { RebuiltChart } from '../Preview/RebuiltChart';
+import { StepNav } from '../StepNav';
 import { ReviewCanvas } from './ReviewCanvas';
 
 export function ReviewPanel() {
@@ -24,6 +26,10 @@ export function ReviewPanel() {
     chartMetadata,
     showRegionOverlay,
     setShowRegionOverlay,
+    reviewMainView,
+    setReviewMainView,
+    aiEvaluationScore,
+    setStep,
   } = useStore();
   const { t } = useT();
 
@@ -70,6 +76,9 @@ export function ReviewPanel() {
       <div className="review-side">
         <h2>{t('reviewTitle')}</h2>
         <p>{t('confidence', { pct: (overallConfidence * 100).toFixed(0) })}</p>
+        {aiEvaluationScore != null && (
+          <p className="hint">{t('aiEvalScore', { pct: (aiEvaluationScore * 100).toFixed(0) })}</p>
+        )}
         <p className="hint">
           {t('reviewStats', { series: series.length, points: totalPoints })}
         </p>
@@ -106,6 +115,22 @@ export function ReviewPanel() {
             ))}
           </ul>
         )}
+        <div className="review-main-toggle">
+          <button
+            type="button"
+            className={reviewMainView === 'source' ? 'active' : ''}
+            onClick={() => setReviewMainView('source')}
+          >
+            {t('viewSource')}
+          </button>
+          <button
+            type="button"
+            className={reviewMainView === 'rebuilt' ? 'active' : ''}
+            onClick={() => setReviewMainView('rebuilt')}
+          >
+            {t('viewRebuilt')}
+          </button>
+        </div>
         <div className="review-controls">
           <label>
             <input
@@ -142,8 +167,13 @@ export function ReviewPanel() {
             </label>
           )}
         </div>
+        <AdvancedOptionsPanel mode="extract" />
         <p className="hint">{t('reviewDeleteHint')}</p>
         <div className="btn-row wrap">
+          <StepNav backTo="extract" />
+          <button type="button" className="btn-muted" onClick={() => setStep('calibrate')}>
+            {t('backToCalibrate')}
+          </button>
           <button type="button" onClick={() => handleExport('csv')}>
             {t('exportCsv')}
           </button>
@@ -160,10 +190,17 @@ export function ReviewPanel() {
             {t('newImage')}
           </button>
         </div>
-        <RebuiltChart />
       </div>
-      <div className="canvas-wrap">
-        <ReviewCanvas />
+      <div className="review-main">
+        {reviewMainView === 'source' ? (
+          <div className="canvas-wrap">
+            <ReviewCanvas />
+          </div>
+        ) : (
+          <div className="rebuilt-main">
+            <RebuiltChart height={520} />
+          </div>
+        )}
       </div>
     </div>
   );

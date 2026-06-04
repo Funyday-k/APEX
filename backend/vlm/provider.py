@@ -27,6 +27,16 @@ class VLMProvider(ABC):
         """Return raw VLM JSON with removals list; empty dict if unsupported."""
         return {}
 
+    async def evaluate_extraction(
+        self,
+        image_bytes: bytes,
+        detected_summary: str,
+        regions_summary: str,
+        semantics_summary: str,
+    ) -> dict:
+        """Return quality evaluation JSON; empty dict if unsupported."""
+        return {}
+
 
 class StubVLMProvider(VLMProvider):
     """无 API Key 或未配置 VLM 时使用。"""
@@ -41,6 +51,15 @@ class StubVLMProvider(VLMProvider):
         return {}
 
     async def audit_points(
+        self,
+        image_bytes: bytes,
+        detected_summary: str,
+        regions_summary: str,
+        semantics_summary: str,
+    ) -> dict:
+        return {}
+
+    async def evaluate_extraction(
         self,
         image_bytes: bytes,
         detected_summary: str,

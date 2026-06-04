@@ -2,7 +2,9 @@ import ReactECharts from 'echarts-for-react';
 import { useT } from '../../i18n/useT';
 import { useStore } from '../../store/useStore';
 
-export const RebuiltChart: React.FC = () => {
+type Props = { height?: number };
+
+export const RebuiltChart: React.FC<Props> = ({ height = 360 }) => {
   const { series, chartType, fitCurves, xScale, yScale, showFitCurves } = useStore();
   const { t, locale } = useT();
 
@@ -80,7 +82,7 @@ export const RebuiltChart: React.FC = () => {
     <ReactECharts
       key={`${locale}-${xScale}-${yScale}`}
       option={option}
-      style={{ height: 360, width: '100%' }}
+      style={{ height, width: '100%' }}
     />
   );
 };

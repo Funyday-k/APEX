@@ -1,5 +1,7 @@
 import { useT } from '../../i18n/useT';
 import { extractData } from '../../services/api';
+import { AdvancedOptionsPanel } from '../AdvancedOptionsPanel';
+import { StepNav } from '../StepNav';
 import { buildCalibration, useStore } from '../../store/useStore';
 
 export function ExtractPanel() {
@@ -18,6 +20,7 @@ export function ExtractPanel() {
     setError,
     semantics,
     regions,
+    extractOptions,
   } = useStore();
   const { t } = useT();
 
@@ -35,7 +38,7 @@ export function ExtractPanel() {
       setError(t('errLogCalibPositive'));
       return;
     }
-    const cal = buildCalibration(xRefs, yRefs, xScale, yScale, imageGeometry);
+    const cal = buildCalibration(xRefs, yRefs, xScale, yScale);
     if (!cal) {
       setError(t('errCalibIncomplete'));
       return;
@@ -51,6 +54,14 @@ export function ExtractPanel() {
         image_id: imageId,
         chart_type: chartType,
         calibration: cal,
+        extract_options: {
+          color_tolerance: extractOptions.color_tolerance,
+          min_marker_area: extractOptions.min_marker_area,
+          suppress_grid: extractOptions.suppress_grid,
+          intersect_auto: extractOptions.intersect_auto,
+          enable_vlm_audit: extractOptions.enable_vlm_audit,
+          enable_ai_evaluation: extractOptions.enable_ai_evaluation,
+        },
       };
       if (chartType === 'heatmap' && heatmapOptions) {
         payload.heatmap_options = heatmapOptions;
@@ -80,6 +91,7 @@ export function ExtractPanel() {
     <div className="step-panel">
       <h2>{t('extractTitle')}</h2>
       <p className="hint">{t('extractHint', { type: chartType })}</p>
+      <AdvancedOptionsPanel mode="extract" />
       {chartType === 'heatmap' && (
         <div className="heatmap-form">
           <p>{t('heatmapParams')}</p>
@@ -104,14 +116,17 @@ export function ExtractPanel() {
           </button>
         </div>
       )}
-      <button
-        type="button"
-        className="btn-primary"
-        disabled={!imageGeometry}
-        onClick={run}
-      >
-        {t('runExtract')}
-      </button>
+      <div className="btn-row">
+        <StepNav backTo="calibrate" />
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={!imageGeometry}
+          onClick={run}
+        >
+          {t('runExtract')}
+        </button>
+      </div>
     </div>
   );
 }

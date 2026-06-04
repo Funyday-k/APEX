@@ -107,6 +107,7 @@ class PlotRegion(BaseModel):
     kind: RegionKind
     bbox: BBox
     label: Optional[str] = None
+    source: Optional[str] = None
 
 
 class PlotRegions(BaseModel):

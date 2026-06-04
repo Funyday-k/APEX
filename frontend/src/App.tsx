@@ -7,6 +7,7 @@ import { AnalyzePanel } from './components/steps/AnalyzePanel';
 import { CalibratePanel } from './components/steps/CalibratePanel';
 import { ExtractPanel } from './components/steps/ExtractPanel';
 import { UploadPanel } from './components/steps/UploadPanel';
+import { WizardFooter } from './components/WizardFooter';
 import { useStore } from './store/useStore';
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
         {step === 'calibrate' && <CalibratePanel />}
         {step === 'extract' && <ExtractPanel />}
         {step === 'review' && <ReviewPanel />}
+        <WizardFooter />
       </main>
     </div>
   );

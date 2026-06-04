@@ -1,6 +1,7 @@
+from calibration.auto_calibrate import ticks_to_calibration_config
 from calibration.axis_detector import detect_axes
 from calibration.calibrator import Calibrator
-from calibration.tick_detector import detect_ticks
+from calibration.tick_detector import build_tick_label_regions, detect_ticks
 from classification.classifier import classify_chart
 from core.calibration_scale import scale_calibration
 from core.schemas import (
@@ -14,12 +15,17 @@ from extractors import get_extractor
 from ocr.ocr_engine import OCREngine
 from preprocessing.enhance import enhance, upscale_if_small
 from preprocessing.loader import load_image
-from preprocessing.plot_area import detect_plot_area
+from calibration.scale_detector import infer_axis_scales
+from preprocessing.plot_area import constrain_plot_area_with_axes, detect_plot_area
 from preprocessing.region_fusion import (
+    axis_confidence_from_geometry,
     chart_metadata_from_semantics,
+    merge_axis_regions,
     merge_plot_area,
+    merge_tick_label_regions,
     parse_vlm_regions,
 )
+from preprocessing.vlm_image import prepare_vlm_image
 from validation.cross_validator import CrossValidator
 from validation.point_audit import (
     format_detected_summary,
@@ -79,25 +85,79 @@ class Orchestrator:
         self.vlm = get_vlm_provider()
         self.validator = CrossValidator()
 
-    async def auto_analyze(self, image_bytes: bytes) -> dict:
-        img = load_image(image_bytes)
-        img = enhance(img)
-        h, w = img.shape[:2]
+    async def auto_analyze(
+        self,
+        image_bytes: bytes,
+        *,
+        chart_type_override: str | None = None,
+        use_vlm_regions: bool = True,
+        force_redetect_plot: bool = False,
+    ) -> dict:
+        vlm_bytes, img, w, h = prepare_vlm_image(image_bytes)
 
-        plot_area = detect_plot_area(img)
-        chart_type = await classify_chart(img, self.vlm)
+        # Preliminary axes on rough plot area for tick-guided boundary
+        rough_plot = detect_plot_area(img)
+        rough_axes = detect_axes(img, rough_plot)
         ocr_results = self.ocr.extract(img)
-        semantics = await self.vlm.analyze_semantics(image_bytes)
+        pre_ticks = detect_ticks(img, rough_axes, ocr_results)
+        x_tick_px = [int(t["pixel"]) for t in pre_ticks.get("x_ticks", [])]
 
-        regions_raw = await self.vlm.segment_regions(image_bytes)
+        plot_area = detect_plot_area(img, x_tick_pixels=x_tick_px or None)
+        if force_redetect_plot:
+            plot_area["detected"] = True
+
+        axes_pre = detect_axes(img, plot_area)
+        plot_area = constrain_plot_area_with_axes(plot_area, axes_pre, w, h)
+
+        chart_type = await classify_chart(img, self.vlm)
+        if chart_type_override:
+            try:
+                chart_type = ChartType(chart_type_override)
+            except ValueError:
+                pass
+
+        semantics = await self.vlm.analyze_semantics(vlm_bytes)
+
+        regions_raw = {}
+        if use_vlm_regions:
+            regions_raw = await self.vlm.segment_regions(vlm_bytes)
         regions = parse_vlm_regions(regions_raw, w, h) if regions_raw else PlotRegions(
             image_width=w, image_height=h, source="none"
         )
         regions = merge_plot_area(regions, plot_area, w, h)
 
         axes = detect_axes(img, plot_area)
+        plot_area = constrain_plot_area_with_axes(plot_area, axes, w, h)
+        regions = merge_plot_area(regions, plot_area, w, h)
+        regions = merge_axis_regions(regions, axes, w, h)
+        tick_regions = build_tick_label_regions(ocr_results, axes, w, h)
+        regions = merge_tick_label_regions(regions, tick_regions)
+
         ticks = detect_ticks(img, axes, ocr_results)
         chart_metadata = chart_metadata_from_semantics(semantics)
+        axis_confidence = axis_confidence_from_geometry(axes, plot_area)
+
+        scale_info = infer_axis_scales(
+            ticks,
+            x_label=semantics.get("x_label") or chart_metadata.get("x_label"),
+            y_label=semantics.get("y_label") or chart_metadata.get("y_label"),
+            vlm_x_scale=semantics.get("x_scale") or chart_metadata.get("x_scale"),
+            vlm_y_scale=semantics.get("y_scale") or chart_metadata.get("y_scale"),
+        )
+        x_scale = scale_info["x_scale"]
+        y_scale = scale_info["y_scale"]
+        chart_metadata["x_scale"] = x_scale
+        chart_metadata["y_scale"] = y_scale
+        suggested_config = ticks_to_calibration_config(ticks, axes, x_scale, y_scale)
+        auto_applied = False
+        if suggested_config and suggested_config.get("auto_confidence", 0) >= 0.55:
+            auto_applied = True
+
+        ocr_summary = [
+            item.get("text", "")
+            for item in ocr_results
+            if item.get("text")
+        ][:40]
 
         return {
             "chart_type": chart_type.value if hasattr(chart_type, "value") else chart_type,
@@ -105,8 +165,26 @@ class Orchestrator:
             "ocr": ocr_results,
             "semantics": semantics,
             "suggested_calibration": ticks,
+            "suggested_calibration_config": (
+                {k: v for k, v in suggested_config.items() if k != "auto_confidence"}
+                if suggested_config
+                else None
+            ),
+            "auto_calibration_applied": auto_applied,
+            "auto_calibration_confidence": (
+                suggested_config.get("auto_confidence", 0) if suggested_config else 0
+            ),
+            "axis_geometry": axes,
+            "axis_confidence": axis_confidence,
+            "scale_detection": scale_info,
             "regions": regions.model_dump(mode="json"),
             "chart_metadata": chart_metadata,
+            "analysis_snapshot": {
+                "ocr_summary": ocr_summary,
+                "plot_area": plot_area,
+                "image_width": w,
+                "image_height": h,
+            },
         }
 
     async def extract(
@@ -118,7 +196,9 @@ class Orchestrator:
         heatmap_options: HeatmapOptions | None = None,
         semantics: dict | None = None,
         regions: dict | PlotRegions | None = None,
+        extract_options: dict | None = None,
     ) -> ExtractionResult:
+        extract_options = extract_options or {}
         img = load_image(image_bytes)
         orig_h, orig_w = img.shape[:2]
         img = enhance(img)
@@ -136,7 +216,7 @@ class Orchestrator:
         extractor = get_extractor(chart_type)
         calibrator = Calibrator(cal_work)
 
-        extract_kw = {"regions": plot_regions}
+        extract_kw = {"regions": plot_regions, **extract_options}
         if chart_type == ChartType.HEATMAP:
             cv_series = extractor.extract(
                 img_work,
@@ -150,13 +230,15 @@ class Orchestrator:
             )
 
         if semantics is None:
-            semantics = await self.vlm.analyze_semantics(image_bytes)
+            vlm_bytes, _, _, _ = prepare_vlm_image(image_bytes)
+            semantics = await self.vlm.analyze_semantics(vlm_bytes)
         semantics = dict(semantics)
         semantics["chart_type"] = chart_type.value
 
         if plot_regions is None:
             h_work, w_work = img_work.shape[:2]
-            regions_raw = await self.vlm.segment_regions(image_bytes)
+            vlm_bytes, _, _, _ = prepare_vlm_image(image_bytes)
+            regions_raw = await self.vlm.segment_regions(vlm_bytes)
             if regions_raw:
                 pr = parse_vlm_regions(regions_raw, orig_w, orig_h)
                 plot_regions = _scale_regions(pr, scale) if scale != 1.0 else pr
@@ -166,6 +248,18 @@ class Orchestrator:
         result = self.validator.validate(cv_series, semantics, img_work)
         result.chart_type = chart_type
         result.regions = plot_regions
+
+        if extract_options.get("enable_ai_evaluation", True):
+            eval_flags, eval_score = await self._evaluate_extraction(
+                image_bytes, result, semantics, plot_regions
+            )
+            if eval_flags:
+                result.low_confidence_flags.extend(eval_flags)
+            if eval_score is not None:
+                result.overall_confidence = float(
+                    0.65 * result.overall_confidence + 0.35 * eval_score
+                )
+            result.metadata["ai_evaluation_score"] = eval_score
 
         fit_curves = getattr(extractor, "_last_fit_curves", [])
         if fit_curves:
@@ -183,8 +277,58 @@ class Orchestrator:
         result.metadata["extract_scale"] = scale
         result.metadata["image_size"] = {"width": orig_w, "height": orig_h}
 
-        await self._run_point_audit(image_bytes, result, semantics, plot_regions)
+        if extract_options.get("enable_vlm_audit", True):
+            await self._run_point_audit(image_bytes, result, semantics, plot_regions)
         return result
+
+    async def _evaluate_extraction(
+        self,
+        image_bytes: bytes,
+        result: ExtractionResult,
+        semantics: dict,
+        regions: PlotRegions | None,
+    ) -> tuple[list[str], float | None]:
+        flags: list[str] = []
+        score: float | None = None
+        try:
+            summary = format_detected_summary(result.series, result.metadata.get("detected_pixels", {}))
+            regions_summary = format_regions_summary(regions)
+            semantics_summary = format_semantics_summary(semantics)
+            raw = await self.vlm.evaluate_extraction(
+                image_bytes, summary, regions_summary, semantics_summary
+            )
+            if raw:
+                score = float(raw.get("overall_score", 0)) if raw.get("overall_score") is not None else None
+                for issue in raw.get("issues", []) or []:
+                    if isinstance(issue, str) and issue:
+                        flags.append(issue)
+                if raw.get("plot_area_incomplete"):
+                    flags.append("AI: 绘图区右边界可能不完整，建议重新分析或手动调整区域")
+                if raw.get("calibration_suspect"):
+                    flags.append("AI: 坐标标定可能不准确，请检查对数轴与刻度值")
+        except Exception:
+            pass
+
+        # Heuristic: plot_area vs data extent
+        if regions:
+            pa = next((r for r in regions.regions if r.kind == "plot_area"), None)
+            if pa and result.series:
+                max_px = max(
+                    (p.x for s in result.series for p in (s.points or [])),
+                    default=0,
+                )
+                # pixel extent check uses metadata detected pixels if available
+                det = result.metadata.get("detected_pixels", {})
+                all_det_x = [
+                    p["x"]
+                    for pts in det.values()
+                    for p in pts
+                    if isinstance(p, dict) and "x" in p
+                ]
+                if all_det_x and max(all_det_x) > pa.bbox.x1 * 0.98:
+                    flags.append("检测点接近绘图区右缘，绘图区可能偏窄")
+
+        return flags, score
 
     async def _run_point_audit(
         self,
