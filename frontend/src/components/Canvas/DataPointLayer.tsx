@@ -60,7 +60,8 @@ export const DataPointLayer: React.FC = () => {
     }
   };
 
-  const showConnectLines = chartType === 'line';
+  const showConnectLines =
+    chartType === 'line' || series.some((s) => s.representation === 'marker_line');
 
   return (
     <Layer>
@@ -74,7 +75,9 @@ export const DataPointLayer: React.FC = () => {
 
         return (
           <React.Fragment key={si}>
-            {showConnectLines && displayPts.length > 1 && (
+            {showConnectLines &&
+              displayPts.length > 1 &&
+              s.representation !== 'markers' && (
               <Line
                 points={[...displayPts]
                   .sort((a, b) => a.x - b.x)
@@ -85,9 +88,26 @@ export const DataPointLayer: React.FC = () => {
             )}
             {displayPts.map((p, pi) => {
               const flagged = removalSet.has(`${si}:${pi}`);
+              const err = s.errors?.[pi] as
+                | { y_err_upper?: number; y_err_lower?: number }
+                | undefined;
+              const dataPt = s.points[pi];
               return (
+              <React.Fragment key={pi}>
+                {pixelDisplayMode === 'data' && s.has_error_bars && dataPt && calibration && err && (
+                  <Line
+                    points={[
+                      p.x,
+                      p.y - 12,
+                      p.x,
+                      p.y + 12,
+                    ]}
+                    stroke={s.color_hex || '#1677ff'}
+                    strokeWidth={1}
+                    listening={false}
+                  />
+                )}
               <Circle
-                key={pi}
                 x={p.x}
                 y={p.y}
                 radius={pixelDisplayMode === 'detected' ? 3 : flagged ? 6 : 4}
@@ -108,6 +128,7 @@ export const DataPointLayer: React.FC = () => {
                   handleDragEnd(si, pi, { x: node.x(), y: node.y() }, p, node);
                 }}
               />
+              </React.Fragment>
             );
             })}
           </React.Fragment>

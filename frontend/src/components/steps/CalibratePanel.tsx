@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useT } from '../../i18n/useT';
 import { autoAnalyze } from '../../services/api';
 import { useStore } from '../../store/useStore';
@@ -21,20 +22,34 @@ export function CalibratePanel() {
     imageGeometry,
     suggestedTicks,
     applySuggestedCalibration,
+    runAiCalibrate,
     axisGeometry,
     axisConfidence,
     chartMetadata,
     showRegionOverlay,
     setShowRegionOverlay,
     autoCalibPending,
+    autoCalibConfidence,
+    aiCalibSource,
+    aiCalibDiagnostics,
     analysisDone,
     imageId,
     setAnalysis,
     setLoading,
     setError,
     analyzeOptions,
+    loading,
+    calibAttempted,
   } = useStore();
   const { t } = useT();
+
+  useEffect(() => {
+    if (!imageId || calibAttempted) return;
+    if (xRefs.length >= 2 && yRefs.length >= 2) return;
+    useStore.setState({ calibAttempted: true });
+    void useStore.getState().runAiCalibrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per calibrate visit
+  }, [imageId]);
 
   const hasSuggestedTicks =
     suggestedTicks &&
@@ -63,10 +78,39 @@ export function CalibratePanel() {
     }
   };
 
+  const diag = aiCalibDiagnostics as {
+    x?: { n_ticks?: number; inlier_ratio?: number };
+    y?: { n_ticks?: number; inlier_ratio?: number };
+  } | null;
+
   return (
     <div className="step-panel split">
       <div className="side-controls">
         <h2>{t('calibrateTitle')}</h2>
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={!imageId || loading}
+          onClick={() => runAiCalibrate()}
+        >
+          {loading ? t('aiCalibrating') : t('runAiCalibrate')}
+        </button>
+        {autoCalibConfidence > 0 && (
+          <p className="hint">
+            {t('aiCalibConfidence', { pct: Math.round(autoCalibConfidence * 100) })}
+            {aiCalibSource === 'vlm'
+              ? ` · ${t('aiCalibSourceVlm')}`
+              : aiCalibSource === 'cv'
+                ? ` · ${t('aiCalibSourceCv')}`
+                : ''}
+          </p>
+        )}
+        {autoCalibPending && <p className="warning">{t('autoCalibPendingShort')}</p>}
+        {diag && (diag.x || diag.y) && (
+          <p className="hint metadata-inline">
+            X: {diag.x?.n_ticks ?? 0} ticks · Y: {diag.y?.n_ticks ?? 0} ticks
+          </p>
+        )}
         <label>
           {t('chartType')}
           <select
@@ -107,9 +151,6 @@ export function CalibratePanel() {
           <p className="hint metadata-inline">
             {t('axisConfidence', { pct: axisConfPct })}
           </p>
-        )}
-        {autoCalibPending && (
-          <p className="warning">{t('autoCalibPendingShort')}</p>
         )}
         {chartMetadata && (chartMetadata.x_quantity || chartMetadata.y_quantity) && (
           <p className="hint metadata-inline">
@@ -153,7 +194,7 @@ export function CalibratePanel() {
           </button>
         </div>
       </div>
-      <div className="canvas-wrap">
+      <div className="canvas-wrap canvas-wrap-viewport">
         <ImageCanvas mode="calibrating" />
       </div>
     </div>

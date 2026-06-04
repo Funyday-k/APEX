@@ -81,3 +81,46 @@ export function nudgeNatural(
     y: Math.min(geometry.natural.y - 1, Math.max(0, point.y + dy)),
   });
 }
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+/** Keep scaled stage content inside viewport (no empty gaps beyond edges). */
+export function clampStagePos(
+  pos: { x: number; y: number },
+  scale: number,
+  viewport: { w: number; h: number },
+  content: { w: number; h: number }
+): { x: number; y: number } {
+  const sw = content.w * scale;
+  const sh = content.h * scale;
+  const minX = Math.min(0, viewport.w - sw);
+  const minY = Math.min(0, viewport.h - sh);
+  const maxX = Math.max(0, viewport.w - sw);
+  const maxY = Math.max(0, viewport.h - sh);
+  return {
+    x: clamp(pos.x, minX, maxX),
+    y: clamp(pos.y, minY, maxY),
+  };
+}
+
+/** Zoom toward a point in container coordinates. */
+export function zoomAtPoint(
+  currentScale: number,
+  currentPos: { x: number; y: number },
+  pointer: { x: number; y: number },
+  factor: number,
+  minScale = 0.2,
+  maxScale = 4
+): { scale: number; pos: { x: number; y: number } } {
+  const newScale = clamp(currentScale * factor, minScale, maxScale);
+  const ratio = newScale / currentScale;
+  return {
+    scale: newScale,
+    pos: {
+      x: pointer.x - (pointer.x - currentPos.x) * ratio,
+      y: pointer.y - (pointer.y - currentPos.y) * ratio,
+    },
+  };
+}

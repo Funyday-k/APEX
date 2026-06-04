@@ -8,6 +8,7 @@ VALID_REGION_KINDS: frozenset[str] = frozenset(
     {
         "plot_area",
         "legend",
+        "legend_marker",
         "x_axis",
         "y_axis",
         "x_tick_labels",
@@ -21,6 +22,7 @@ VALID_REGION_KINDS: frozenset[str] = frozenset(
 EXCLUDE_MASK_KINDS: frozenset[RegionKind] = frozenset(
     {
         "legend",
+        "legend_marker",
         "x_tick_labels",
         "y_tick_labels",
         "title",

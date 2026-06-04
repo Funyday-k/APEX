@@ -266,6 +266,44 @@
   min-height: 400px;
 }
 
+.rebuilt-chart-wrap {
+  width: 100%;
+}
+
+.rebuilt-chart-header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.rebuilt-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.rebuilt-axis-labels {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.latex-text .katex {
+  font-size: 1em;
+}
+
+.pdf-page-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.pdf-page-select select {
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #d9d9d9;
+}
+
 .warning {
   color: #c41d4a;
   font-size: 0.85rem;
@@ -343,6 +381,138 @@
   border-radius: 6px;
   padding: 8px;
   overflow: auto;
+}
+
+.canvas-wrap-viewport {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 480px;
+}
+
+.canvas-viewport {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.canvas-toolbar .btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  color: #333;
+}
+
+.canvas-toolbar .btn-icon.active {
+  background: #e6f4ff;
+  border-color: #1677ff;
+  color: #1677ff;
+}
+
+.canvas-toolbar .btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.canvas-toolbar-hint {
+  font-size: 11px;
+  color: #888;
+  margin-left: 8px;
+}
+
+.canvas-toolbar .btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.canvas-zoom-pct {
+  margin-left: auto;
+  font-size: 12px;
+  color: #666;
+  min-width: 48px;
+  text-align: right;
+}
+
+.canvas-stage-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 400px;
+  overflow: hidden;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.region-edit-tools {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.cases-panel {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.cases-panel h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.cases-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+
+.case-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.region-target-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.region-target-row .btn-sm.active {
+  background: #1677ff;
+  color: #fff;
+  border-color: #1677ff;
+}
+
+.region-adjust-modal {
+  max-width: 420px;
 }
 
 .konva-stage-shell {

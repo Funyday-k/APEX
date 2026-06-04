@@ -41,6 +41,15 @@ class ExtractRequest(BaseModel):
     extract_options: ExtractOptions | None = None
 
 
+class ExtractCasesRequest(BaseModel):
+    image_id: str
+    calibration: CalibrationConfig
+    cases: list[dict]
+    semantics: dict | None = None
+    regions: dict | None = None
+    extract_options: ExtractOptions | None = None
+
+
 def _load_bytes(image_id: str) -> bytes:
     try:
         path = safe_child_path(UPLOAD_DIR, image_id)
@@ -89,4 +98,32 @@ async def run_extraction(req: ExtractRequest):
     )
     out = enrich_series_for_api(result, req.calibration)
     out["ai_evaluation_score"] = result.metadata.get("ai_evaluation_score")
+    return out
+
+
+@router.post("/cases")
+async def run_cases_extraction(req: ExtractCasesRequest):
+    if not req.cases:
+        raise HTTPException(status_code=400, detail="cases 列表不能为空")
+    image_bytes = _load_bytes(req.image_id)
+    extract_kw: dict = {}
+    if req.extract_options:
+        extract_kw = req.extract_options.model_dump(exclude_none=True)
+    try:
+        result = await orchestrator.extract_cases(
+            image_bytes,
+            req.cases,
+            req.calibration,
+            semantics=req.semantics,
+            regions=req.regions,
+            extract_options=extract_kw,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    save_result(
+        req.image_id,
+        result,
+        calibration=req.calibration.model_dump(mode="json"),
+    )
+    out = enrich_series_for_api(result, req.calibration)
     return out

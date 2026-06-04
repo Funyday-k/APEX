@@ -193,7 +193,7 @@ export function ReviewPanel() {
       </div>
       <div className="review-main">
         {reviewMainView === 'source' ? (
-          <div className="canvas-wrap">
+          <div className="canvas-wrap canvas-wrap-viewport">
             <ReviewCanvas />
           </div>
         ) : (

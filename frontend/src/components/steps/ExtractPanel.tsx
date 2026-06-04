@@ -1,5 +1,5 @@
 import { useT } from '../../i18n/useT';
-import { extractData } from '../../services/api';
+import { extractCases, extractData } from '../../services/api';
 import { AdvancedOptionsPanel } from '../AdvancedOptionsPanel';
 import { StepNav } from '../StepNav';
 import { buildCalibration, useStore } from '../../store/useStore';
@@ -21,6 +21,7 @@ export function ExtractPanel() {
     semantics,
     regions,
     extractOptions,
+    cases,
   } = useStore();
   const { t } = useT();
 
@@ -78,7 +79,17 @@ export function ExtractPanel() {
       if (regions) {
         payload.regions = regions;
       }
-      const res = await extractData(payload);
+      const res =
+        cases.length > 0
+          ? await extractCases({
+              image_id: imageId,
+              calibration: cal,
+              cases,
+              semantics: semantics || undefined,
+              regions: regions || undefined,
+              extract_options: payload.extract_options,
+            })
+          : await extractData(payload);
       setExtraction(res, cal);
     } catch (e) {
       setError((e as Error).message);

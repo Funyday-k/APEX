@@ -77,6 +77,20 @@ def build_plot_mask(
     exclude = regions_for_mask(regions)
     if exclude:
         mask = _subtract_regions(mask, exclude, pad=4)
+
+    # Hard clip to plot_area region when available
+    if regions:
+        plot_regions = [r for r in regions.regions if r.kind == "plot_area"]
+        if plot_regions:
+            b = plot_regions[0].bbox
+            clipped = np.zeros((h, w), np.uint8)
+            x0p = max(0, b.x0)
+            y0p = max(0, b.y0)
+            x1p = min(w, b.x1)
+            y1p = min(h, b.y1)
+            if x1p > x0p and y1p > y0p:
+                clipped[y0p:y1p, x0p:x1p] = mask[y0p:y1p, x0p:x1p]
+                mask = clipped
     return mask
 
 

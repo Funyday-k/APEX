@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 RegionKind = Literal[
     "plot_area",
     "legend",
+    "legend_marker",
     "x_axis",
     "y_axis",
     "x_tick_labels",
@@ -14,6 +15,8 @@ RegionKind = Literal[
     "colorbar",
     "other_text",
 ]
+
+SeriesRepresentation = Literal["continuous", "marker_line", "markers", "step"]
 
 
 class ChartType(str, Enum):
@@ -60,6 +63,14 @@ class FitCurve(BaseModel):
     is_fit: bool = True
 
 
+class UncertaintyBand(BaseModel):
+    name: str
+    color_hex: Optional[str] = None
+    upper_points: list[Point] = Field(default_factory=list)
+    lower_points: list[Point] = Field(default_factory=list)
+    band_kind: str = "confidence"
+
+
 class CalibrationPoint(BaseModel):
     pixel: Point
     data: Point
@@ -85,6 +96,8 @@ class DataSeries(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, default=1.0)
     has_error_bars: bool = False
     errors: list[Optional[ErrorBar]] = Field(default_factory=list)
+    representation: SeriesRepresentation = "continuous"
+    error_band: Optional[UncertaintyBand] = None
 
 
 class HeatmapOptions(BaseModel):

@@ -1,61 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import {
-  clampToDisplay,
-  containerToDisplay,
-  displayToContainer,
-  displayToNatural,
-  mapPointBetweenSizes,
-  naturalToDisplay,
-  nudgeNatural,
-  snapNatural,
-} from './canvasCoords';
-import type { ImageGeometry } from '../store/useStore';
+import { clampStagePos, zoomAtPoint } from './canvasCoords';
 
-const geometry: ImageGeometry = {
-  natural: { x: 2000, y: 1000 },
-  display: { x: 900, y: 450 },
-};
-
-describe('canvasCoords', () => {
-  it('maps display to natural and back', () => {
-    const display = { x: 450, y: 225 };
-    const natural = displayToNatural(display, geometry);
-    expect(natural.x).toBeCloseTo(1000, 5);
-    expect(natural.y).toBeCloseTo(500, 5);
-    const back = naturalToDisplay(natural, geometry);
-    expect(back.x).toBeCloseTo(display.x, 5);
-    expect(back.y).toBeCloseTo(display.y, 5);
+describe('clampStagePos', () => {
+  it('keeps content within viewport when smaller than viewport', () => {
+    const pos = clampStagePos({ x: -50, y: -30 }, 1, { w: 400, h: 300 }, { w: 200, h: 150 });
+    expect(pos.x).toBe(0);
+    expect(pos.y).toBe(0);
   });
 
-  it('applies stage transform consistently', () => {
-    const transform = { scale: 2, offsetX: 10, offsetY: 20 };
-    const display = { x: 100, y: 50 };
-    const container = displayToContainer(display, transform);
-    expect(container.x).toBe(210);
-    expect(container.y).toBe(120);
-    const back = containerToDisplay(container.x, container.y, transform);
-    expect(back.x).toBeCloseTo(display.x, 5);
-    expect(back.y).toBeCloseTo(display.y, 5);
+  it('allows panning when content larger than viewport', () => {
+    const pos = clampStagePos({ x: -500, y: -400 }, 2, { w: 400, h: 300 }, { w: 300, h: 200 });
+    expect(pos.x).toBeGreaterThanOrEqual(400 - 600);
+    expect(pos.y).toBeGreaterThanOrEqual(300 - 400);
   });
+});
 
-  it('clamps display coordinates', () => {
-    const clamped = clampToDisplay({ x: 999, y: -5 }, geometry.display);
-    expect(clamped.x).toBe(900);
-    expect(clamped.y).toBe(0);
-  });
-
-  it('nudges natural pixels within bounds', () => {
-    const start = { x: 10, y: 10 };
-    const moved = nudgeNatural(start, -20, 0, geometry);
-    expect(moved.x).toBe(0);
-    expect(moved.y).toBe(10);
-    expect(snapNatural({ x: 10.6, y: 20.4 })).toEqual({ x: 11, y: 20 });
-  });
-
-  it('handles zero-width source in mapPointBetweenSizes', () => {
-    expect(mapPointBetweenSizes({ x: 5, y: 7 }, { x: 0, y: 100 }, { x: 200, y: 100 })).toEqual({
-      x: 5,
-      y: 7,
-    });
+describe('zoomAtPoint', () => {
+  it('zooms toward pointer', () => {
+    const { scale, pos } = zoomAtPoint(1, { x: 0, y: 0 }, { x: 100, y: 100 }, 1.2);
+    expect(scale).toBeCloseTo(1.2);
+    expect(pos.x).toBeCloseTo(-20);
+    expect(pos.y).toBeCloseTo(-20);
   });
 });

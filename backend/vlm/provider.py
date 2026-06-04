@@ -37,6 +37,14 @@ class VLMProvider(ABC):
         """Return quality evaluation JSON; empty dict if unsupported."""
         return {}
 
+    async def read_axis_ticks(self, image_bytes: bytes) -> dict:
+        """Return axis tick values and positions; empty dict if unsupported."""
+        return {}
+
+    async def detect_cases(self, image_bytes: bytes) -> dict:
+        """Return composite series cases JSON; empty dict if unsupported."""
+        return {}
+
 
 class StubVLMProvider(VLMProvider):
     """无 API Key 或未配置 VLM 时使用。"""

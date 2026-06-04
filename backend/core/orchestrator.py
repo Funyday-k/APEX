@@ -12,6 +12,11 @@ from core.schemas import (
     PlotRegions,
 )
 from extractors import get_extractor
+from extractors.cases import (
+    build_cases,
+    build_extraction_result,
+    extract_cases_on_image,
+)
 from ocr.ocr_engine import OCREngine
 from preprocessing.enhance import enhance, upscale_if_small
 from preprocessing.loader import load_image
@@ -26,6 +31,7 @@ from preprocessing.region_fusion import (
     parse_vlm_regions,
 )
 from preprocessing.vlm_image import prepare_vlm_image
+from preprocessing.legend_detector import detect_legend_regions, merge_legend_regions
 from validation.cross_validator import CrossValidator
 from validation.point_audit import (
     format_detected_summary,
@@ -133,6 +139,9 @@ class Orchestrator:
         tick_regions = build_tick_label_regions(ocr_results, axes, w, h)
         regions = merge_tick_label_regions(regions, tick_regions)
 
+        cv_legends = detect_legend_regions(img, plot_area, ocr_results, w, h)
+        regions = merge_legend_regions(regions, cv_legends, w, h)
+
         ticks = detect_ticks(img, axes, ocr_results)
         chart_metadata = chart_metadata_from_semantics(semantics)
         axis_confidence = axis_confidence_from_geometry(axes, plot_area)
@@ -150,7 +159,8 @@ class Orchestrator:
         chart_metadata["y_scale"] = y_scale
         suggested_config = ticks_to_calibration_config(ticks, axes, x_scale, y_scale)
         auto_applied = False
-        if suggested_config and suggested_config.get("auto_confidence", 0) >= 0.55:
+        auto_threshold = 0.65
+        if suggested_config and suggested_config.get("auto_confidence", 0) >= auto_threshold:
             auto_applied = True
 
         ocr_summary = [
@@ -159,6 +169,9 @@ class Orchestrator:
             if item.get("text")
         ][:40]
 
+        vlm_cases_raw = await self.vlm.detect_cases(vlm_bytes)
+        cases = build_cases(semantics, vlm_cases_raw, w, h)
+
         return {
             "chart_type": chart_type.value if hasattr(chart_type, "value") else chart_type,
             "plot_area": plot_area,
@@ -166,13 +179,20 @@ class Orchestrator:
             "semantics": semantics,
             "suggested_calibration": ticks,
             "suggested_calibration_config": (
-                {k: v for k, v in suggested_config.items() if k != "auto_confidence"}
+                {
+                    k: v
+                    for k, v in suggested_config.items()
+                    if k not in ("auto_confidence", "calibration_diagnostics")
+                }
                 if suggested_config
                 else None
             ),
             "auto_calibration_applied": auto_applied,
             "auto_calibration_confidence": (
                 suggested_config.get("auto_confidence", 0) if suggested_config else 0
+            ),
+            "calibration_diagnostics": (
+                suggested_config.get("calibration_diagnostics") if suggested_config else None
             ),
             "axis_geometry": axes,
             "axis_confidence": axis_confidence,
@@ -185,7 +205,45 @@ class Orchestrator:
                 "image_width": w,
                 "image_height": h,
             },
+            "cases": cases,
         }
+
+    async def extract_cases(
+        self,
+        image_bytes: bytes,
+        cases: list[dict],
+        calibration: CalibrationConfig,
+        semantics: dict | None = None,
+        regions: dict | PlotRegions | None = None,
+        extract_options: dict | None = None,
+    ) -> ExtractionResult:
+        extract_options = extract_options or {}
+        img = load_image(image_bytes)
+        img = enhance(img)
+        img_work, scale = self._prepare_working_image(img)
+        cal_work = scale_calibration(calibration, scale) if scale != 1.0 else calibration
+        calibrator = Calibrator(cal_work)
+        orig_h, orig_w = img.shape[:2]
+        plot_regions = _parse_regions_payload(regions, orig_w, orig_h)
+        if plot_regions and scale != 1.0:
+            plot_regions = _scale_regions(plot_regions, scale)
+
+        series = extract_cases_on_image(
+            img_work,
+            calibrator,
+            cases,
+            plot_regions=plot_regions,
+            extract_options=extract_options,
+        )
+        if semantics is None:
+            vlm_bytes, _, _, _ = prepare_vlm_image(image_bytes)
+            semantics = await self.vlm.analyze_semantics(vlm_bytes)
+
+        result = build_extraction_result(series, semantics, ChartType.SCATTER)
+        result.regions = plot_regions
+        if extract_options.get("enable_vlm_audit", True):
+            await self._run_point_audit(image_bytes, result, semantics or {}, plot_regions)
+        return result
 
     async def extract(
         self,
@@ -265,6 +323,12 @@ class Orchestrator:
         if fit_curves:
             result.metadata["fit_curves"] = [
                 f.model_dump(mode="json") if hasattr(f, "model_dump") else f for f in fit_curves
+            ]
+
+        error_bands = getattr(extractor, "_last_error_bands", [])
+        if error_bands:
+            result.metadata["error_bands"] = [
+                b.model_dump(mode="json") if hasattr(b, "model_dump") else b for b in error_bands
             ]
 
         detected = getattr(extractor, "_last_detected_pixels", {})
@@ -398,10 +462,15 @@ def enrich_series_for_api(result: ExtractionResult, calibration: CalibrationConf
                 "confidence": s.confidence,
                 "has_error_bars": s.has_error_bars,
                 "errors": err_list,
+                "representation": s.representation,
+                "error_band": (
+                    s.error_band.model_dump(mode="json") if s.error_band else None
+                ),
             }
         )
     out["series"] = series_out
     out["fit_curves"] = result.metadata.get("fit_curves", [])
+    out["error_bands"] = result.metadata.get("error_bands", [])
     if result.regions:
         out["regions"] = result.regions.model_dump(mode="json")
     out["suggested_removals"] = [r.model_dump(mode="json") for r in result.suggested_removals]

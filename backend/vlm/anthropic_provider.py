@@ -7,6 +7,8 @@ import numpy as np
 from core.schemas import ChartType
 from vlm.parser import parse_json_response
 from vlm.prompts import (
+    AXIS_TICKS_PROMPT,
+    CASES_PROMPT,
     CLASSIFY_PROMPT,
     REGION_SEGMENT_PROMPT,
     SEMANTICS_PROMPT,
@@ -73,6 +75,22 @@ class AnthropicProvider(VLMProvider):
         arr = load_image(image_bytes)
         media_type, data = self._encode_ndarray(arr)
         text = await self._ask(media_type, data, REGION_SEGMENT_PROMPT)
+        return parse_json_response(text)
+
+    async def read_axis_ticks(self, image_bytes: bytes) -> dict:
+        from preprocessing.loader import load_image
+
+        arr = load_image(image_bytes)
+        media_type, data = self._encode_ndarray(arr)
+        text = await self._ask(media_type, data, AXIS_TICKS_PROMPT)
+        return parse_json_response(text)
+
+    async def detect_cases(self, image_bytes: bytes) -> dict:
+        from preprocessing.loader import load_image
+
+        arr = load_image(image_bytes)
+        media_type, data = self._encode_ndarray(arr)
+        text = await self._ask(media_type, data, CASES_PROMPT)
         return parse_json_response(text)
 
     async def audit_points(

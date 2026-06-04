@@ -8,6 +8,8 @@ from openai import AsyncOpenAI
 from core.schemas import ChartType
 from vlm.parser import parse_json_response
 from vlm.prompts import (
+    AXIS_TICKS_PROMPT,
+    CASES_PROMPT,
     CLASSIFY_PROMPT,
     REGION_SEGMENT_PROMPT,
     SEMANTICS_PROMPT,
@@ -70,6 +72,16 @@ class OpenAIProvider(VLMProvider):
     async def segment_regions(self, image_bytes: bytes) -> dict:
         url = self._encode(image_bytes)
         text = await self._ask(url, REGION_SEGMENT_PROMPT)
+        return parse_json_response(text)
+
+    async def read_axis_ticks(self, image_bytes: bytes) -> dict:
+        url = self._encode(image_bytes)
+        text = await self._ask(url, AXIS_TICKS_PROMPT)
+        return parse_json_response(text)
+
+    async def detect_cases(self, image_bytes: bytes) -> dict:
+        url = self._encode(image_bytes)
+        text = await self._ask(url, CASES_PROMPT)
         return parse_json_response(text)
 
     async def audit_points(

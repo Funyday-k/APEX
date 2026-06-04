@@ -54,3 +54,38 @@ export function bboxToCanvasRect(
     height: (bbox.y1 - bbox.y0) * sy,
   };
 }
+
+/** Map Konva display rect back to natural-pixel bbox. */
+export function canvasRectToBbox(
+  rect: { x: number; y: number; width: number; height: number },
+  naturalWidth: number,
+  naturalHeight: number,
+  canvasWidth: number,
+  canvasHeight: number
+) {
+  const sx = Math.max(1, naturalWidth) / Math.max(1, canvasWidth);
+  const sy = Math.max(1, naturalHeight) / Math.max(1, canvasHeight);
+  const x0 = Math.round(rect.x * sx);
+  const y0 = Math.round(rect.y * sy);
+  const x1 = Math.round((rect.x + rect.width) * sx);
+  const y1 = Math.round((rect.y + rect.height) * sy);
+  return {
+    x0: Math.max(0, Math.min(x0, x1)),
+    y0: Math.max(0, Math.min(y0, y1)),
+    x1: Math.min(naturalWidth, Math.max(x0, x1)),
+    y1: Math.min(naturalHeight, Math.max(y0, y1)),
+  };
+}
+
+export const REGION_KINDS = [
+  'plot_area',
+  'legend',
+  'legend_marker',
+  'x_axis',
+  'y_axis',
+  'x_tick_labels',
+  'y_tick_labels',
+  'title',
+  'colorbar',
+  'other_text',
+] as const;

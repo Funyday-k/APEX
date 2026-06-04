@@ -8,6 +8,8 @@ from PIL import Image
 from core.schemas import ChartType
 from vlm.parser import parse_json_response
 from vlm.prompts import (
+    AXIS_TICKS_PROMPT,
+    CASES_PROMPT,
     CLASSIFY_PROMPT,
     REGION_SEGMENT_PROMPT,
     SEMANTICS_PROMPT,
@@ -61,6 +63,16 @@ class LocalQwenProvider(VLMProvider):
     async def segment_regions(self, image_bytes: bytes) -> dict:
         pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         text = self._run(pil, REGION_SEGMENT_PROMPT)
+        return parse_json_response(text)
+
+    async def read_axis_ticks(self, image_bytes: bytes) -> dict:
+        pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        text = self._run(pil, AXIS_TICKS_PROMPT)
+        return parse_json_response(text)
+
+    async def detect_cases(self, image_bytes: bytes) -> dict:
+        pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        text = self._run(pil, CASES_PROMPT)
         return parse_json_response(text)
 
     async def audit_points(

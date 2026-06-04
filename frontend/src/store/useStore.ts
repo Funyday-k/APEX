@@ -33,7 +33,11 @@ export type SeriesData = {
   confidence?: number;
   has_error_bars?: boolean;
   errors?: unknown[];
+  representation?: string;
+  error_band?: unknown;
 };
+
+export type PdfPageInfo = { page: number; width: number; height: number };
 
 export type ChartMetadata = {
   title?: string | null;
@@ -85,6 +89,14 @@ export type CalibrationConfigPayload = {
   y_axis: { scale: 'linear' | 'log'; ref1: CalibPoint; ref2: CalibPoint };
 };
 
+export type ExtractionCase = {
+  label: string;
+  color_hex: string;
+  representation: 'line' | 'scatter' | 'band';
+  sub_bbox?: { x0: number; y0: number; x1: number; y1: number };
+  notes?: string;
+};
+
 export type ImageInfo = {
   fileName?: string;
   fileSize?: number;
@@ -134,11 +146,29 @@ type State = {
   analysisSnapshot: Record<string, unknown> | null;
   autoCalibConfidence: number;
   autoCalibPending: boolean;
+  aiCalibSource: 'vlm' | 'cv' | null;
+  aiCalibDiagnostics: Record<string, unknown> | null;
   maxStepReached: Step;
+  selectedRegionIndex: number | null;
+  newRegionKind: string;
+  canvasScale: number;
+  canvasStagePos: { x: number; y: number };
+  canvasViewport: { w: number; h: number };
+  canvasFitScale: number;
+  canvasPanMode: boolean;
+  regionAdjustOpen: boolean;
+  calibAttempted: boolean;
+  cases: ExtractionCase[];
   analyzeOptions: AnalyzeOptionsState;
   extractOptions: ExtractOptionsState;
   reviewMainView: 'source' | 'rebuilt';
   aiEvaluationScore: number | null;
+
+  sourceType: 'image' | 'pdf';
+  sourceId: string | null;
+  pdfPages: PdfPageInfo[];
+  selectedPdfPage: number;
+  regionsConfirmed: boolean;
 
   xRefs: CalibPoint[];
   yRefs: CalibPoint[];
@@ -155,6 +185,7 @@ type State = {
 
   series: SeriesData[];
   fitCurves: Array<Record<string, unknown>>;
+  errorBands: Array<Record<string, unknown>>;
   flags: string[];
   overallConfidence: number;
   calibration: CalibrationConfigPayload | null;
@@ -167,6 +198,36 @@ type State = {
   setLoading: (b: boolean, msg?: string) => void;
   setError: (msg: string | null) => void;
   setImage: (url: string, id: string, fileMeta?: Partial<ImageInfo>) => void;
+  setSourceMeta: (meta: {
+    sourceType?: 'image' | 'pdf';
+    sourceId?: string | null;
+    pdfPages?: PdfPageInfo[];
+    selectedPdfPage?: number;
+  }) => void;
+  setRegions: (regions: PlotRegionsPayload | null) => void;
+  setSelectedRegionIndex: (index: number | null) => void;
+  setNewRegionKind: (kind: string) => void;
+  updateRegion: (
+    index: number,
+    bbox: { x0: number; y0: number; x1: number; y1: number }
+  ) => void;
+  addRegion: (kind: string) => void;
+  deleteRegion: (index: number) => void;
+  setRegionKind: (index: number, kind: string) => void;
+  setCanvasViewport: (w: number, h: number) => void;
+  setCanvasScale: (scale: number) => void;
+  setCanvasStagePos: (pos: { x: number; y: number }) => void;
+  setCanvasFitScale: (scale: number) => void;
+  setCanvasPanMode: (on: boolean) => void;
+  setRegionAdjustOpen: (open: boolean) => void;
+  initCanvasView: () => void;
+  resetCanvasView: () => void;
+  fitCanvasToViewport: () => void;
+  setCases: (cases: ExtractionCase[]) => void;
+  updateCase: (index: number, patch: Partial<ExtractionCase>) => void;
+  addCase: () => void;
+  deleteCase: (index: number) => void;
+  confirmRegions: () => void;
   syncRegionsToImageSize: (width: number, height: number) => void;
   setImageGeometry: (natural: Pixel) => void;
   setAnalysis: (res: Record<string, unknown>) => void;
@@ -191,6 +252,7 @@ type State = {
   setShowFitCurves: (show: boolean) => void;
   applySuggestedCalibration: () => void;
   applySuggestedCalibrationConfig: (config: Record<string, unknown>) => void;
+  runAiCalibrate: () => Promise<void>;
   reset: () => void;
 };
 
@@ -237,11 +299,28 @@ const initial = {
   analysisSnapshot: null,
   autoCalibConfidence: 0,
   autoCalibPending: false,
+  aiCalibSource: null as 'vlm' | 'cv' | null,
+  aiCalibDiagnostics: null as Record<string, unknown> | null,
   maxStepReached: 'upload' as Step,
+  selectedRegionIndex: null as number | null,
+  newRegionKind: 'legend',
+  canvasScale: 1,
+  canvasStagePos: { x: 0, y: 0 },
+  canvasViewport: { w: 900, h: 650 },
+  canvasFitScale: 1,
+  canvasPanMode: false,
+  regionAdjustOpen: false,
+  calibAttempted: false,
+  cases: [] as ExtractionCase[],
   analyzeOptions: defaultAnalyzeOptions,
   extractOptions: defaultExtractOptions,
   reviewMainView: 'source' as const,
   aiEvaluationScore: null,
+  sourceType: 'image' as const,
+  sourceId: null as string | null,
+  pdfPages: [] as PdfPageInfo[],
+  selectedPdfPage: 0,
+  regionsConfirmed: false,
   showRegionOverlay: true,
   xRefs: [] as CalibPoint[],
   yRefs: [] as CalibPoint[],
@@ -252,6 +331,7 @@ const initial = {
   heatmapOptions: null,
   series: [] as SeriesData[],
   fitCurves: [] as Array<Record<string, unknown>>,
+  errorBands: [] as Array<Record<string, unknown>>,
   flags: [] as string[],
   overallConfidence: 0,
   calibration: null,
@@ -299,9 +379,16 @@ export const useStore = create<State>((set, get) => ({
       step: 'analyze',
       error: null,
       analysisDone: false,
+      regionsConfirmed: false,
       maxStepReached: 'analyze',
       xRefs: [],
       yRefs: [],
+      calibAttempted: false,
+      regionAdjustOpen: false,
+      cases: [],
+      canvasScale: 1,
+      canvasStagePos: { x: 0, y: 0 },
+      canvasPanMode: false,
       imageInfo: {
         imageId,
         fileName: fileMeta?.fileName,
@@ -311,6 +398,156 @@ export const useStore = create<State>((set, get) => ({
         height: fileMeta?.height,
       },
     }),
+  setSourceMeta: (meta) =>
+    set((state) => ({
+      sourceType: meta.sourceType ?? state.sourceType,
+      sourceId: meta.sourceId !== undefined ? meta.sourceId : state.sourceId,
+      pdfPages: meta.pdfPages ?? state.pdfPages,
+      selectedPdfPage: meta.selectedPdfPage ?? state.selectedPdfPage,
+    })),
+  setRegions: (regions) => set({ regions, regionsConfirmed: false }),
+  setSelectedRegionIndex: (selectedRegionIndex) => set({ selectedRegionIndex }),
+  setNewRegionKind: (newRegionKind) => set({ newRegionKind }),
+  updateRegion: (index, bbox) => {
+    const { regions } = get();
+    if (!regions?.regions?.[index]) return;
+    const next = regions.regions.map((r, i) =>
+      i === index
+        ? {
+            ...r,
+            bbox: { ...r.bbox, ...bbox },
+            source: 'manual' as const,
+          }
+        : r
+    );
+    set({
+      regions: { ...regions, regions: next },
+      regionsConfirmed: false,
+    });
+  },
+  addRegion: (kind) => {
+    const { regions, imageGeometry } = get();
+    if (!imageGeometry) return;
+    const nw = imageGeometry.natural.x;
+    const nh = imageGeometry.natural.y;
+    const w = Math.round(nw * 0.2);
+    const h = Math.round(nh * 0.12);
+    const x0 = Math.round((nw - w) / 2);
+    const y0 = Math.round((nh - h) / 2);
+    const item = {
+      kind,
+      bbox: { x0, y0, x1: x0 + w, y1: y0 + h, confidence: 0.7 },
+      source: 'manual' as const,
+    };
+    const base = regions || {
+      regions: [],
+      image_width: nw,
+      image_height: nh,
+      source: 'manual',
+    };
+    const nextRegions = [...base.regions, item];
+    set({
+      regions: {
+        ...base,
+        image_width: nw,
+        image_height: nh,
+        regions: nextRegions,
+      },
+      selectedRegionIndex: nextRegions.length - 1,
+      regionsConfirmed: false,
+    });
+  },
+  deleteRegion: (index) => {
+    const { regions } = get();
+    if (!regions) return;
+    const next = regions.regions.filter((_, i) => i !== index);
+    set({
+      regions: { ...regions, regions: next },
+      selectedRegionIndex: null,
+      regionsConfirmed: false,
+    });
+  },
+  setRegionKind: (index, kind) => {
+    const { regions } = get();
+    if (!regions?.regions[index]) return;
+    const next = regions.regions.map((r, i) =>
+      i === index ? { ...r, kind, source: 'manual' as const } : r
+    );
+    set({ regions: { ...regions, regions: next }, regionsConfirmed: false });
+  },
+  setCanvasViewport: (w, h) => set({ canvasViewport: { w, h } }),
+  setCanvasScale: (canvasScale) => set({ canvasScale }),
+  setCanvasStagePos: (canvasStagePos) => set({ canvasStagePos }),
+  setCanvasFitScale: (canvasFitScale) => set({ canvasFitScale }),
+  setCanvasPanMode: (canvasPanMode) => set({ canvasPanMode }),
+  setRegionAdjustOpen: (regionAdjustOpen) => set({ regionAdjustOpen }),
+  initCanvasView: () => {
+    const { canvasViewport, imageGeometry } = get();
+    if (!imageGeometry) return;
+    const pos = {
+      x: Math.max(0, (canvasViewport.w - imageGeometry.display.x) / 2),
+      y: Math.max(0, (canvasViewport.h - imageGeometry.display.y) / 2),
+    };
+    set({
+      canvasScale: 1,
+      canvasFitScale: 1,
+      canvasStagePos: pos,
+    });
+  },
+  resetCanvasView: () => {
+    const { canvasViewport, imageGeometry } = get();
+    if (!imageGeometry) {
+      set({ canvasScale: 1, canvasStagePos: { x: 0, y: 0 } });
+      return;
+    }
+    const pos = {
+      x: Math.max(0, (canvasViewport.w - imageGeometry.display.x) / 2),
+      y: Math.max(0, (canvasViewport.h - imageGeometry.display.y) / 2),
+    };
+    set({ canvasScale: 1, canvasStagePos: pos });
+  },
+  fitCanvasToViewport: () => {
+    const { canvasViewport, imageGeometry } = get();
+    if (!imageGeometry) return;
+    const fit = Math.min(
+      canvasViewport.w / imageGeometry.display.x,
+      canvasViewport.h / imageGeometry.display.y,
+      1
+    );
+    const sw = imageGeometry.display.x * fit;
+    const sh = imageGeometry.display.y * fit;
+    set({
+      canvasFitScale: fit,
+      canvasScale: fit,
+      canvasStagePos: {
+        x: Math.max(0, (canvasViewport.w - sw) / 2),
+        y: Math.max(0, (canvasViewport.h - sh) / 2),
+      },
+    });
+  },
+  setCases: (cases) => set({ cases }),
+  updateCase: (index, patch) => {
+    const { cases } = get();
+    const next = cases.map((c, i) => (i === index ? { ...c, ...patch } : c));
+    set({ cases: next });
+  },
+  addCase: () => {
+    const { cases } = get();
+    set({
+      cases: [
+        ...cases,
+        {
+          label: `case ${cases.length + 1}`,
+          color_hex: '#3388ff',
+          representation: 'scatter',
+        },
+      ],
+    });
+  },
+  deleteCase: (index) => {
+    set({ cases: get().cases.filter((_, i) => i !== index) });
+  },
+  confirmRegions: () => set({ regionsConfirmed: true }),
   syncRegionsToImageSize: (width, height) => {
     const { regions, imageInfo } = get();
     const normalized = normalizeRegionsToImage(regions, width, height);
@@ -384,9 +621,24 @@ export const useStore = create<State>((set, get) => ({
     const autoConf = (res.auto_calibration_confidence as number) || 0;
     const suggestedConfig = res.suggested_calibration_config as Record<string, unknown> | null;
     const autoApplied = Boolean(res.auto_calibration_applied);
+    const rawCases = res.cases;
+    const parsedCases: ExtractionCase[] = Array.isArray(rawCases)
+      ? (rawCases as ExtractionCase[]).map((c, i) => ({
+          label: String((c as ExtractionCase).label || `case ${i + 1}`),
+          color_hex: String((c as ExtractionCase).color_hex || '#3388ff'),
+          representation:
+            (c as ExtractionCase).representation === 'line' ||
+            (c as ExtractionCase).representation === 'band'
+              ? (c as ExtractionCase).representation
+              : 'scatter',
+          sub_bbox: (c as ExtractionCase).sub_bbox,
+          notes: (c as ExtractionCase).notes,
+        }))
+      : [];
 
     const updates: Partial<State> = {
       chartType: normalizeChartType(chartType),
+      cases: parsedCases,
       suggestedTicks: suggestedTicks as Record<string, unknown> | null,
       axisGeometry: (axisGeometry as AxisGeometry | null) || null,
       axisConfidence: (axisConfidence as AxisConfidence | null) || null,
@@ -394,6 +646,7 @@ export const useStore = create<State>((set, get) => ({
       regions: normalizedRegions,
       chartMetadata: meta,
       analysisDone: true,
+      regionsConfirmed: false,
       analysisSnapshot: snap || null,
       autoCalibConfidence: autoConf,
       autoCalibPending: !autoApplied && Boolean(suggestedConfig),
@@ -427,7 +680,7 @@ export const useStore = create<State>((set, get) => ({
 
     if (autoApplied && suggestedConfig) {
       get().applySuggestedCalibrationConfig(suggestedConfig);
-    } else if (suggestedConfig && autoConf >= 0.55) {
+    } else if (suggestedConfig && autoConf >= 0.65) {
       get().applySuggestedCalibrationConfig(suggestedConfig);
     }
   },
@@ -494,6 +747,7 @@ export const useStore = create<State>((set, get) => ({
     set({
       series,
       fitCurves: (data.fit_curves as Array<Record<string, unknown>>) || [],
+      errorBands: (data.error_bands as Array<Record<string, unknown>>) || [],
       flags: (data.low_confidence_flags as string[]) || [],
       overallConfidence: (data.overall_confidence as number) || 0,
       calibration,
@@ -555,6 +809,35 @@ export const useStore = create<State>((set, get) => ({
       data: { x: 0, y: t.value },
     }));
     set({ xRefs, yRefs, calibAxis: 'x', autoCalibPending: false });
+  },
+  runAiCalibrate: async () => {
+    const { imageId, locale } = get();
+    if (!imageId) return;
+    const { autoCalibrate } = await import('../services/api');
+    set({
+      loading: true,
+      loadingMsg: locale === 'zh' ? 'AI 标定中…' : 'AI calibrating…',
+    });
+    set({ error: null });
+    try {
+      const res = await autoCalibrate(imageId, true);
+      const cfg = res.suggested_calibration_config as Record<string, unknown> | null;
+      if (cfg) {
+        get().applySuggestedCalibrationConfig(cfg);
+      }
+      set({
+        autoCalibConfidence: (res.auto_confidence as number) || 0,
+        autoCalibPending: false,
+        aiCalibSource: (res.source as 'vlm' | 'cv') || null,
+        aiCalibDiagnostics: (res.calibration_diagnostics as Record<string, unknown>) || null,
+        axisGeometry: (res.axis_geometry as AxisGeometry) || get().axisGeometry,
+        suggestedTicks: (res.ticks as Record<string, unknown>) || get().suggestedTicks,
+      });
+    } catch (e) {
+      set({ error: (e as Error).message });
+    } finally {
+      set({ loading: false, loadingMsg: '' });
+    }
   },
   applySuggestedCalibrationConfig: (config) => {
     type Ref = { pixel: Pixel; data: Pixel };
